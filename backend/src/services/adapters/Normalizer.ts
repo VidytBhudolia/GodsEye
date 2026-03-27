@@ -19,11 +19,14 @@ export function normalizeOpenSkyState(state: any[]): Entity {
     },
     metadata: {
       name: state[1] ? state[1].trim() : "Unknown",
-      country: state[2],
-      speed_knots: state[9] ? state[9] * 1.94384 : 0, // m/s to knots
-      heading_deg: state[10] || 0,
+      country: state[2] || "International",
+      country_flag: "✈️", // Placeholder for now or lookup table
+      speed_knots: state[9] ? Math.round(state[9] * 1.94384) : 0, // m/s to knots
+      heading_deg: Math.round(state[10] || 0),
       status: state[8] ? "inactive" : "active",
       entity_type: "Aircraft",
+      icao24: state[0],
+      callsign: state[1] ? state[1].trim() : undefined,
     },
     enrichment: {
       squawk_code: state[14]?.toString(),
@@ -40,18 +43,23 @@ export function normalizeOpenSkyState(state: any[]): Entity {
 export function normalizeAisMessage(raw: any): Entity | null {
   if (raw.MessageType === "PositionReport" && raw.Message?.PositionReport) {
     const report = raw.Message.PositionReport;
+    const mmsi = raw.MetaData.MMSI.toString();
     return {
-      id: raw.MetaData.MMSI.toString(),
+      id: mmsi,
       type: "ship",
       position: {
         lat: report.Latitude,
         lon: report.Longitude,
       },
       metadata: {
-        name: raw.MetaData.ShipName ? raw.MetaData.ShipName.trim() : `MMSI: ${raw.MetaData.MMSI}`,
-        speed_knots: report.Sog,
-        heading_deg: report.Cog,
+        name: raw.MetaData.ShipName ? raw.MetaData.ShipName.trim() : `MMSI: ${mmsi}`,
+        country: "Unknown",
+        country_flag: "🚢",
+        speed_knots: Math.round(report.Sog || 0),
+        heading_deg: Math.round(report.Cog || 0),
         status: report.NavigationalStatus === 0 ? "inactive" : "active",
+        entity_type: "Ship",
+        mmsi: mmsi,
       },
       cached_at: new Date().toISOString(),
       cache_ttl_seconds: 60,
@@ -60,20 +68,28 @@ export function normalizeAisMessage(raw: any): Entity | null {
 
   if (raw.MessageType === "ShipStaticData" && raw.Message?.ShipStaticData) {
     const data = raw.Message.ShipStaticData;
+    const mmsi = raw.MetaData.MMSI.toString();
     return {
-      id: raw.MetaData.MMSI.toString(),
+      id: mmsi,
       type: "ship",
       position: {
-        lat: raw.MetaData.latitude || 0, // Fallback if AIS Stream meta included it, else we rely on merge
+        lat: raw.MetaData.latitude || 0, 
         lon: raw.MetaData.longitude || 0,
       },
       metadata: {
-        name: data.Name ? data.Name.trim() : `MMSI: ${raw.MetaData.MMSI}`,
-        entity_type: data.Type ? `Type Code: ${data.Type}` : undefined,
+        name: data.Name ? data.Name.trim() : `MMSI: ${mmsi}`,
+        country: "Unknown",
+        country_flag: "🚢",
+        speed_knots: 0,
+        heading_deg: 0,
+        status: "active",
+        entity_type: data.Type ? `Ship Type: ${data.Type}` : "Ship",
+        mmsi: mmsi,
+        callsign: data.Callsign ? data.Callsign.trim() : undefined,
       },
       current_route: {
         destination: data.Destination ? data.Destination.trim() : undefined,
-        eta: data.Eta ? `Day ${data.Eta.Day} Hour ${data.Eta.Hour}:${data.Eta.Minute}` : undefined, // simplified
+        eta: data.Eta ? `Day ${data.Eta.Day} ${data.Eta.Hour}:${data.Eta.Minute}` : undefined,
       },
       cached_at: new Date().toISOString(),
       cache_ttl_seconds: 60,
