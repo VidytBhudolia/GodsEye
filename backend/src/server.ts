@@ -6,8 +6,26 @@ import dotenv from "dotenv";
 
 import healthRouter from "./routes/health";
 import { registerEntitySocket } from "./sockets/entitySocket";
+import entitiesRouter from "./routes/entities";
+import summarizeRouter from "./routes/summarize";
+import { startAisStream } from "./services/adapters/AISAdapter";
+import { startOpenSkyPolling } from "./jobs/openskyPolling";
 
 dotenv.config({ path: "../.env" });
+
+const requiredEnvs = [
+  "AISSTREAM_API_KEY",
+  "SUPABASE_URL",
+  "SUPABASE_SERVICE_KEY",
+  "REDIS_URL",
+  "GROQ_API_KEY"
+];
+
+for (const env of requiredEnvs) {
+  if (!process.env[env]) {
+    console.warn(`[GodsEye] WARNING: Missing environment variable: ${env}. Some features may be disabled.`);
+  }
+}
 
 const app = express();
 const server = http.createServer(app);
@@ -25,9 +43,15 @@ app.use(express.json());
 
 // Routes
 app.use(healthRouter);
+app.use("/api/entities", entitiesRouter);
+app.use("/api/entities", summarizeRouter);
 
 // WebSocket
 registerEntitySocket(io);
+
+// Start Data Adapters
+startAisStream();
+startOpenSkyPolling();
 
 // Start
 const PORT = parseInt(process.env.PORT || "4000", 10);

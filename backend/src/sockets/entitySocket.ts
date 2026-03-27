@@ -1,6 +1,10 @@
 import { Server as SocketIOServer } from "socket.io";
 
+let ioInstance: SocketIOServer | null = null;
+
 export function registerEntitySocket(io: SocketIOServer): void {
+  ioInstance = io;
+  
   io.on("connection", (socket) => {
     console.log(`[Socket] Client connected: ${socket.id}`);
 
@@ -16,4 +20,8 @@ export function registerEntitySocket(io: SocketIOServer): void {
       console.log(`[Socket] Client disconnected: ${socket.id} (${reason})`);
     });
   });
+}
+
+export function getIO(): SocketIOServer | null {
+  return ioInstance;
 }
