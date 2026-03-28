@@ -13,7 +13,7 @@ export function useMockEntities() {
     const numShips = 50;
     const numPlanes = 50;
 
-    let mockEntities: Record<string, Entity> = {};
+    const mockEntities: Record<string, Entity> = {};
 
     const generateEntity = (type: 'ship' | 'aircraft', idStr: string): Entity => {
       return {

@@ -1,24 +1,107 @@
 import { create } from 'zustand';
+import type { Map as MapLibreMap } from 'maplibre-gl';
 // TODO: replace with ../../shared/contract.ts import
 import { Entity } from '@/types/contract';
+
+const LAYERS_STORAGE_KEY = 'godseye:layers';
+const ALL_LAYER_IDS = ['ship', 'aircraft', 'satellite', 'signal'] as const;
+
+type LayerId = typeof ALL_LAYER_IDS[number];
+
+type LayerStorageShape = {
+  ships?: boolean;
+  aircraft?: boolean;
+  satellites?: boolean;
+  signal?: boolean;
+  radio?: boolean;
+};
+
+function getDefaultLayerState(): Record<LayerId, boolean> {
+  return {
+    ship: true,
+    aircraft: true,
+    satellite: true,
+    signal: true,
+  };
+}
+
+function readStoredLayers(): Record<LayerId, boolean> {
+  if (typeof window === 'undefined') {
+    return getDefaultLayerState();
+  }
+
+  try {
+    const raw = window.localStorage.getItem(LAYERS_STORAGE_KEY);
+    if (!raw) {
+      return getDefaultLayerState();
+    }
+
+    const parsed = JSON.parse(raw) as LayerStorageShape;
+    const defaults = getDefaultLayerState();
+
+    return {
+      ship: parsed.ships ?? defaults.ship,
+      aircraft: parsed.aircraft ?? defaults.aircraft,
+      satellite: parsed.satellites ?? defaults.satellite,
+      signal: parsed.signal ?? parsed.radio ?? defaults.signal,
+    };
+  } catch {
+    return getDefaultLayerState();
+  }
+}
+
+function persistLayers(layerState: Record<LayerId, boolean>) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const payload: LayerStorageShape = {
+    ships: layerState.ship,
+    aircraft: layerState.aircraft,
+    satellites: layerState.satellite,
+    signal: layerState.signal,
+  };
+
+  window.localStorage.setItem(LAYERS_STORAGE_KEY, JSON.stringify(payload));
+}
+
+function getActiveLayersFromState(layerState: Record<LayerId, boolean>): LayerId[] {
+  return ALL_LAYER_IDS.filter((layer) => layerState[layer]);
+}
 
 interface MapStore {
   entities: Record<string, Entity>;
   selectedEntity: Entity | null;
-  activeLayers: string[];
+  activeLayers: LayerId[];
+  layerVisibility: Record<LayerId, boolean>;
   cursorCoords: { lng: number; lat: number } | null;
+  historicalRoute: [number, number][] | null;
+  selectedHistoryRouteId: string | null;
+  mapInstance: MapLibreMap | null;
   updateEntity: (entity: Entity) => void;
   removeEntity: (id: string) => void;
   setSelectedEntity: (entity: Entity | null) => void;
-  toggleLayer: (layer: string) => void;
+  toggleLayer: (layer: LayerId) => void;
+  hydrateLayers: () => void;
   setCursorCoords: (coords: { lng: number; lat: number } | null) => void;
+  setHistoricalRoute: (route: [number, number][] | null) => void;
+  clearHistoricalRoute: () => void;
+  setSelectedHistoryRouteId: (id: string | null) => void;
+  setMapInstance: (map: MapLibreMap | null) => void;
+  getEntityCountByType: (type: LayerId) => number;
 }
 
-export const useMapStore = create<MapStore>((set) => ({
+const initialLayerVisibility = readStoredLayers();
+
+export const useMapStore = create<MapStore>((set, get) => ({
   entities: {},
   selectedEntity: null,
-  activeLayers: ['ship', 'aircraft'],
+  activeLayers: getActiveLayersFromState(initialLayerVisibility),
+  layerVisibility: initialLayerVisibility,
   cursorCoords: null,
+  historicalRoute: null,
+  selectedHistoryRouteId: null,
+  mapInstance: null,
   
   updateEntity: (entity) =>
     set((state) => ({
@@ -32,14 +115,52 @@ export const useMapStore = create<MapStore>((set) => ({
       return { entities: newEntities };
     }),
     
-  setSelectedEntity: (entity) => set({ selectedEntity: entity }),
+  setSelectedEntity: (entity) =>
+    set({
+      selectedEntity: entity,
+      historicalRoute: null,
+      selectedHistoryRouteId: null,
+    }),
   
   toggleLayer: (layer) =>
-    set((state) => ({
-      activeLayers: state.activeLayers.includes(layer)
-        ? state.activeLayers.filter((l) => l !== layer)
-        : [...state.activeLayers, layer],
-    })),
+    set((state) => {
+      const nextVisibility = {
+        ...state.layerVisibility,
+        [layer]: !state.layerVisibility[layer],
+      };
+
+      persistLayers(nextVisibility);
+
+      return {
+        layerVisibility: nextVisibility,
+        activeLayers: getActiveLayersFromState(nextVisibility),
+      };
+    }),
+
+  hydrateLayers: () => {
+    const hydrated = readStoredLayers();
+    set({
+      layerVisibility: hydrated,
+      activeLayers: getActiveLayersFromState(hydrated),
+    });
+  },
     
   setCursorCoords: (coords) => set({ cursorCoords: coords }),
+
+  setHistoricalRoute: (route) => set({ historicalRoute: route }),
+
+  clearHistoricalRoute: () =>
+    set({
+      historicalRoute: null,
+      selectedHistoryRouteId: null,
+    }),
+
+  setSelectedHistoryRouteId: (id) => set({ selectedHistoryRouteId: id }),
+
+  setMapInstance: (map) => set({ mapInstance: map }),
+
+  getEntityCountByType: (type) => {
+    const entities = get().entities;
+    return Object.values(entities).filter((entity) => entity.type === type).length;
+  },
 }));

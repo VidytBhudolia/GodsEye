@@ -13,17 +13,12 @@ class SocketClient {
       transports: ['websocket'],
     });
 
-    this.socket.on('connect', () => {
-      console.log('Connected to GodsEye backend socket.');
-    });
-
-    this.socket.on('entity_update', (entity: Entity) => {
+    const handleEntityUpdate = (entity: Entity) => {
       useMapStore.getState().updateEntity(entity);
-    });
+    };
 
-    this.socket.on('disconnect', () => {
-      console.log('Disconnected from GodsEye backend socket.');
-    });
+    this.socket.on('entity_update', handleEntityUpdate);
+    this.socket.on('entity:update', handleEntityUpdate);
   }
 
   disconnect() {

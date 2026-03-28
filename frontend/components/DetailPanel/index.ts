@@ -1,2 +1,3 @@
-// DetailPanel barrel export — placeholder components added in Phase 2
-export {};
+export { default as DetailPanel } from "./DetailPanel";
+export { default as RouteTimeline } from "./RouteTimeline";
+export { default as AIAnalysis } from "./AIAnalysis";

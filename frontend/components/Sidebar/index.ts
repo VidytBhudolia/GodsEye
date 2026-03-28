@@ -1,2 +1,2 @@
-// Sidebar barrel export — placeholder components added in Phase 2
-export {};
+export { default as Sidebar } from "./Sidebar";
+export { default as LayerToggle } from "./LayerToggle";

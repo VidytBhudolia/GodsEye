@@ -3,6 +3,8 @@
 import { useMapStore } from "@/store/useMapStore";
 import { formatDistanceToNow } from "date-fns";
 import { X } from "lucide-react";
+import AIAnalysis from "./AIAnalysis";
+import RouteTimeline from "./RouteTimeline";
 
 export default function DetailPanel() {
   const { selectedEntity, setSelectedEntity } = useMapStore();
@@ -110,6 +112,13 @@ export default function DetailPanel() {
                   </div>
                 </div>
               </section>
+
+              <RouteTimeline
+                entityId={selectedEntity.id}
+                entityType={selectedEntity.type}
+              />
+
+              <AIAnalysis entityId={selectedEntity.id} />
             </div>
           </>
         )}

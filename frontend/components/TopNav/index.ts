@@ -1,2 +1,2 @@
-// TopNav barrel export — placeholder components added in Phase 2
-export {};
+export { default as TopNav } from "./TopNav";
+export { default as SearchBar } from "./SearchBar";

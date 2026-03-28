@@ -1,2 +1,1 @@
-// StatusBar barrel export — placeholder components added in Phase 2
-export {};
+export { default as StatusBar } from "./StatusBar";

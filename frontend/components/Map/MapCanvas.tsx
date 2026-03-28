@@ -3,17 +3,221 @@
 import { useRef, useEffect } from "react";
 import maplibregl from "maplibre-gl";
 import { useMapStore } from "@/store/useMapStore";
+import RouteLayer from "./RouteLayer";
 
-const LAYER_MAP: Record<string, string> = {
+type LayerKey = "ship" | "aircraft" | "satellite" | "signal";
+
+const LAYER_MAP: Record<LayerKey, string> = {
   ship: "layer-ship",
   aircraft: "layer-aircraft",
   satellite: "layer-satellite",
   signal: "layer-signal",
 };
 
+const BASE_ICON_SIZE: Record<LayerKey, number> = {
+  ship: 0.36,
+  aircraft: 0.42,
+  satellite: 0.36,
+  signal: 0.36,
+};
+
+function buildTriangleIcon(size: number, fill: string): ImageData {
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("2D context unavailable while creating map icon.");
+  }
+
+  ctx.clearRect(0, 0, size, size);
+  ctx.fillStyle = fill;
+  ctx.beginPath();
+  ctx.moveTo(size * 0.5, size * 0.15);
+  ctx.lineTo(size * 0.82, size * 0.85);
+  ctx.lineTo(size * 0.18, size * 0.85);
+  ctx.closePath();
+  ctx.fill();
+
+  return ctx.getImageData(0, 0, size, size);
+}
+
+function buildDiamondIcon(size: number, fill: string): ImageData {
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("2D context unavailable while creating map icon.");
+  }
+
+  ctx.clearRect(0, 0, size, size);
+  ctx.fillStyle = fill;
+  ctx.beginPath();
+  ctx.moveTo(size * 0.5, size * 0.1);
+  ctx.lineTo(size * 0.9, size * 0.5);
+  ctx.lineTo(size * 0.5, size * 0.9);
+  ctx.lineTo(size * 0.1, size * 0.5);
+  ctx.closePath();
+  ctx.fill();
+
+  return ctx.getImageData(0, 0, size, size);
+}
+
+function buildPlaneIcon(size: number, fill: string): ImageData {
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("2D context unavailable while creating map icon.");
+  }
+
+  ctx.clearRect(0, 0, size, size);
+  ctx.fillStyle = fill;
+  ctx.strokeStyle = fill;
+  ctx.lineWidth = size * 0.09;
+  ctx.lineCap = "round";
+
+  // Plane body
+  ctx.beginPath();
+  ctx.moveTo(size * 0.5, size * 0.12);
+  ctx.lineTo(size * 0.5, size * 0.9);
+  ctx.stroke();
+
+  // Main wings
+  ctx.beginPath();
+  ctx.moveTo(size * 0.2, size * 0.5);
+  ctx.lineTo(size * 0.8, size * 0.5);
+  ctx.stroke();
+
+  // Tail wings
+  ctx.beginPath();
+  ctx.moveTo(size * 0.35, size * 0.72);
+  ctx.lineTo(size * 0.65, size * 0.72);
+  ctx.stroke();
+
+  // Nose
+  ctx.beginPath();
+  ctx.moveTo(size * 0.5, size * 0.05);
+  ctx.lineTo(size * 0.6, size * 0.2);
+  ctx.lineTo(size * 0.4, size * 0.2);
+  ctx.closePath();
+  ctx.fill();
+
+  return ctx.getImageData(0, 0, size, size);
+}
+
+function buildCircleIcon(size: number, fill: string): ImageData {
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("2D context unavailable while creating map icon.");
+  }
+
+  ctx.clearRect(0, 0, size, size);
+  ctx.fillStyle = fill;
+  ctx.beginPath();
+  ctx.arc(size * 0.5, size * 0.5, size * 0.22, 0, Math.PI * 2);
+  ctx.fill();
+
+  return ctx.getImageData(0, 0, size, size);
+}
+
+function ensureEntityIcons(map: maplibregl.Map) {
+  if (!map.hasImage("icon-aircraft")) {
+    map.addImage("icon-aircraft", buildPlaneIcon(64, "#F8FAFC"));
+  }
+  if (!map.hasImage("icon-ship")) {
+    map.addImage("icon-ship", buildTriangleIcon(64, "#22C55E"));
+  }
+  if (!map.hasImage("icon-satellite")) {
+    map.addImage("icon-satellite", buildDiamondIcon(64, "#F97316"));
+  }
+  if (!map.hasImage("icon-signal")) {
+    map.addImage("icon-signal", buildCircleIcon(64, "#38BDF8"));
+  }
+}
+
 export default function MapCanvas() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+
+  function syncMapData(state: ReturnType<typeof useMapStore.getState>) {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+
+    const { entities, activeLayers, selectedEntity } = state;
+    const selectedEntityId = selectedEntity?.id;
+
+    const grouped: Record<
+      LayerKey,
+      Array<{
+        type: "Feature";
+        properties: { id: string; heading: number };
+        geometry: { type: "Point"; coordinates: [number, number] };
+      }>
+    > = {
+      ship: [],
+      aircraft: [],
+      satellite: [],
+      signal: [],
+    };
+
+    Object.values(entities).forEach((e) => {
+      if (activeLayers.includes(e.type)) {
+        grouped[e.type].push({
+          type: "Feature",
+          properties: {
+            id: e.id,
+            heading: e.metadata.heading_deg ?? 0,
+          },
+          geometry: {
+            type: "Point",
+            coordinates: [e.position.lon, e.position.lat],
+          },
+        });
+      }
+    });
+
+    (Object.keys(LAYER_MAP) as LayerKey[]).forEach((type) => {
+      const source = map.getSource(`source-${type}`) as maplibregl.GeoJSONSource;
+      if (source) {
+        source.setData({
+          type: "FeatureCollection",
+          features: grouped[type] || [],
+        });
+
+        if (map.getLayer(LAYER_MAP[type])) {
+          map.setLayoutProperty(
+            LAYER_MAP[type],
+            "visibility",
+            activeLayers.includes(type) ? "visible" : "none"
+          );
+
+          if (selectedEntityId) {
+            map.setPaintProperty(LAYER_MAP[type], "icon-opacity", [
+              "case",
+              ["==", ["get", "id"], selectedEntityId],
+              1,
+              0.25,
+            ]);
+            map.setLayoutProperty(LAYER_MAP[type], "icon-size", [
+              "case",
+              ["==", ["get", "id"], selectedEntityId],
+              BASE_ICON_SIZE[type] * 1.3,
+              BASE_ICON_SIZE[type],
+            ]);
+          } else {
+            map.setPaintProperty(LAYER_MAP[type], "icon-opacity", 1);
+            map.setLayoutProperty(LAYER_MAP[type], "icon-size", BASE_ICON_SIZE[type]);
+          }
+        }
+      }
+    });
+  }
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
@@ -54,7 +258,9 @@ export default function MapCanvas() {
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
 
     map.on("load", () => {
-      Object.keys(LAYER_MAP).forEach((type) => {
+      ensureEntityIcons(map);
+
+      (Object.keys(LAYER_MAP) as LayerKey[]).forEach((type) => {
         if (!map.getSource(`source-${type}`)) {
           map.addSource(`source-${type}`, {
             type: "geojson",
@@ -63,14 +269,27 @@ export default function MapCanvas() {
 
           map.addLayer({
             id: LAYER_MAP[type],
-            type: "circle",
+            type: "symbol",
             source: `source-${type}`,
-            paint: {
-              "circle-radius": type === "ship" ? 4 : 5,
-              "circle-color": type === "ship" ? "#22C55E" : "#38BDF8",
-              "circle-stroke-width": 1,
-              "circle-stroke-color": "#0F1117",
+            layout: {
+              "icon-image":
+                type === "aircraft"
+                  ? "icon-aircraft"
+                  : type === "ship"
+                  ? "icon-ship"
+                  : type === "satellite"
+                  ? "icon-satellite"
+                  : "icon-signal",
+              "icon-size": BASE_ICON_SIZE[type],
+              "icon-allow-overlap": true,
+              "icon-ignore-placement": true,
+              "icon-rotation-alignment": "map",
+              "icon-rotate":
+                type === "aircraft" || type === "ship"
+                  ? ["coalesce", ["get", "heading"], 0]
+                  : 0,
             },
+            paint: {},
           });
 
           map.on("click", LAYER_MAP[type], (e) => {
@@ -116,57 +335,14 @@ export default function MapCanvas() {
     });
 
     mapRef.current = map;
+    useMapStore.getState().setMapInstance(map);
 
     return () => {
       map.remove();
+      useMapStore.getState().setMapInstance(null);
       mapRef.current = null;
     };
   }, []);
-
-  const syncMapData = (state: ReturnType<typeof useMapStore.getState>) => {
-    const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
-
-    const { entities, activeLayers } = state;
-
-    const grouped: Record<string, any[]> = {
-      ship: [],
-      aircraft: [],
-      satellite: [],
-      signal: [],
-    };
-
-    Object.values(entities).forEach((e) => {
-      if (activeLayers.includes(e.type)) {
-        grouped[e.type].push({
-          type: "Feature",
-          properties: { id: e.id },
-          geometry: {
-            type: "Point",
-            coordinates: [e.position.lon, e.position.lat],
-          },
-        });
-      }
-    });
-
-    Object.keys(LAYER_MAP).forEach((type) => {
-      const source = map.getSource(`source-${type}`) as maplibregl.GeoJSONSource;
-      if (source) {
-        source.setData({
-          type: "FeatureCollection",
-          features: grouped[type] || [],
-        });
-
-        if (map.getLayer(LAYER_MAP[type])) {
-          map.setLayoutProperty(
-            LAYER_MAP[type],
-            "visibility",
-            activeLayers.includes(type) ? "visible" : "none"
-          );
-        }
-      }
-    });
-  };
 
   useEffect(() => {
     // Subscribe gives us continuous updates when items change
@@ -179,10 +355,9 @@ export default function MapCanvas() {
   }, []);
 
   return (
-    <div
-      ref={mapContainerRef}
-      className="w-full h-full"
-      style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
-    />
+    <>
+      <div ref={mapContainerRef} className="absolute inset-0 h-full w-full" />
+      <RouteLayer />
+    </>
   );
 }
