@@ -1,3 +1,5 @@
+export type EntityType = 'ship' | 'aircraft' | 'satellite' | 'signal';
+
 export interface Position {
   lat: number;
   lon: number;
@@ -19,7 +21,7 @@ export interface Metadata {
 
 export interface Entity {
   id: string;
-  type: 'ship' | 'aircraft' | 'satellite' | 'signal';
+  type: EntityType;
   position: Position;
   metadata: Metadata;
   current_route?: any;
@@ -28,3 +30,4 @@ export interface Entity {
   cached_at: string;
   cache_ttl_seconds: number;
 }
+

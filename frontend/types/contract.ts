@@ -1,1 +1,1 @@
-export * from '../../../shared/contract';
+export * from '../../shared/contract';
