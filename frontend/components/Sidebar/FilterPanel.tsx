@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Check, Search, X } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { useMapStore } from "@/store/useMapStore";
@@ -52,12 +52,6 @@ export default function FilterPanel({ open, onClose }: FilterPanelProps) {
   );
 
   const [countryQuery, setCountryQuery] = useState("");
-
-  useEffect(() => {
-    if (!open) {
-      setCountryQuery("");
-    }
-  }, [open]);
 
   const availableCountries = useMemo(() => {
     const uniqueCountries = new Map<string, string>();
