@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
 import { useMapStore } from "@/store/useMapStore";
+import type { Entity } from "@/types/contract";
 import RouteLayer from "./RouteLayer";
 
 type LayerKey = "ship" | "aircraft" | "satellite" | "signal";
@@ -14,12 +15,170 @@ const LAYER_MAP: Record<LayerKey, string> = {
   signal: "layer-signal",
 };
 
+const SOURCE_MAP: Record<LayerKey, string> = {
+  ship: "ships-source",
+  aircraft: "aircraft-source",
+  satellite: "sats-source",
+  signal: "signal-source",
+};
+
 const BASE_ICON_SIZE: Record<LayerKey, number> = {
   ship: 0.36,
   aircraft: 0.42,
   satellite: 0.36,
   signal: 0.36,
 };
+
+type EntityFeature = {
+  type: "Feature";
+  properties: {
+    id: string;
+    name: string;
+    heading: number;
+    speed: number;
+    country: string;
+    type: LayerKey;
+  };
+  geometry: {
+    type: "Point";
+    coordinates: [number, number];
+  };
+};
+
+type EntityFeatureCollection = {
+  type: "FeatureCollection";
+  features: EntityFeature[];
+};
+
+function isWithinPaddedBounds(
+  lon: number,
+  lat: number,
+  bounds: maplibregl.LngLatBounds,
+  paddingRatio = 0.1
+): boolean {
+  const north = bounds.getNorth();
+  const south = bounds.getSouth();
+  const east = bounds.getEast();
+  const west = bounds.getWest();
+
+  const latPadding = (north - south) * paddingRatio;
+  const paddedNorth = north + latPadding;
+  const paddedSouth = south - latPadding;
+
+  if (lat < paddedSouth || lat > paddedNorth) {
+    return false;
+  }
+
+  const lonPadding = Math.abs(east - west) * paddingRatio;
+  const paddedWest = west - lonPadding;
+  const paddedEast = east + lonPadding;
+
+  if (paddedEast - paddedWest >= 360) {
+    return true;
+  }
+
+  if (paddedWest <= paddedEast) {
+    return lon >= paddedWest && lon <= paddedEast;
+  }
+
+  return lon >= paddedWest || lon <= paddedEast;
+}
+
+function buildGeoJSON(
+  entities: Record<string, Entity>,
+  type: LayerKey,
+  bounds: maplibregl.LngLatBounds | null
+): EntityFeatureCollection {
+  const features: EntityFeature[] = [];
+
+  for (const entity of Object.values(entities)) {
+    if (entity.type !== type) {
+      continue;
+    }
+
+    const { lon, lat } = entity.position;
+    if (!Number.isFinite(lon) || !Number.isFinite(lat)) {
+      continue;
+    }
+
+    if (bounds && !isWithinPaddedBounds(lon, lat, bounds, 0.1)) {
+      continue;
+    }
+
+    features.push({
+      type: "Feature",
+      properties: {
+        id: entity.id,
+        name: entity.metadata.name,
+        heading: entity.metadata.heading_deg ?? 0,
+        speed: entity.metadata.speed_knots ?? 0,
+        country: entity.metadata.country,
+        type,
+      },
+      geometry: {
+        type: "Point",
+        coordinates: [lon, lat],
+      },
+    });
+  }
+
+  return {
+    type: "FeatureCollection",
+    features,
+  };
+}
+
+function setSourceData(
+  map: maplibregl.Map,
+  sourceId: string,
+  data: EntityFeatureCollection
+) {
+  const source = map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined;
+  if (source) {
+    source.setData(data);
+  }
+}
+
+function setLayerVisibility(map: maplibregl.Map, activeLayers: LayerKey[]) {
+  (Object.keys(LAYER_MAP) as LayerKey[]).forEach((type) => {
+    if (!map.getLayer(LAYER_MAP[type])) {
+      return;
+    }
+
+    map.setLayoutProperty(
+      LAYER_MAP[type],
+      "visibility",
+      activeLayers.includes(type) ? "visible" : "none"
+    );
+  });
+}
+
+function setSelectionStyles(map: maplibregl.Map, selectedEntityId: string | null) {
+  (Object.keys(LAYER_MAP) as LayerKey[]).forEach((type) => {
+    if (!map.getLayer(LAYER_MAP[type])) {
+      return;
+    }
+
+    if (selectedEntityId) {
+      map.setPaintProperty(LAYER_MAP[type], "icon-opacity", [
+        "case",
+        ["==", ["get", "id"], selectedEntityId],
+        1,
+        0.25,
+      ]);
+      map.setLayoutProperty(LAYER_MAP[type], "icon-size", [
+        "case",
+        ["==", ["get", "id"], selectedEntityId],
+        BASE_ICON_SIZE[type] * 1.3,
+        BASE_ICON_SIZE[type],
+      ]);
+      return;
+    }
+
+    map.setPaintProperty(LAYER_MAP[type], "icon-opacity", 1);
+    map.setLayoutProperty(LAYER_MAP[type], "icon-size", BASE_ICON_SIZE[type]);
+  });
+}
 
 function buildTriangleIcon(size: number, fill: string): ImageData {
   const canvas = document.createElement("canvas");
@@ -142,85 +301,44 @@ function ensureEntityIcons(map: maplibregl.Map) {
 }
 
 export default function MapCanvas() {
+  const entities = useMapStore((state) => state.entities);
+  const activeLayers = useMapStore((state) => state.activeLayers);
+  const selectedEntityId = useMapStore((state) => state.selectedEntity?.id ?? null);
+
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+  const entitiesRef = useRef<Record<string, Entity>>(entities);
+  const updateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function syncMapData(state: ReturnType<typeof useMapStore.getState>) {
+  const syncSources = useCallback(() => {
     const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
+    if (!map || !map.isStyleLoaded()) {
+      return;
+    }
 
-    const { entities, activeLayers, selectedEntity } = state;
-    const selectedEntityId = selectedEntity?.id;
+    const bounds = map.getBounds();
 
-    const grouped: Record<
-      LayerKey,
-      Array<{
-        type: "Feature";
-        properties: { id: string; heading: number };
-        geometry: { type: "Point"; coordinates: [number, number] };
-      }>
-    > = {
-      ship: [],
-      aircraft: [],
-      satellite: [],
-      signal: [],
-    };
+    setSourceData(map, SOURCE_MAP.aircraft, buildGeoJSON(entitiesRef.current, "aircraft", bounds));
+    setSourceData(map, SOURCE_MAP.ship, buildGeoJSON(entitiesRef.current, "ship", bounds));
+    setSourceData(map, SOURCE_MAP.satellite, buildGeoJSON(entitiesRef.current, "satellite", bounds));
+    setSourceData(map, SOURCE_MAP.signal, buildGeoJSON(entitiesRef.current, "signal", bounds));
+  }, []);
 
-    Object.values(entities).forEach((e) => {
-      if (activeLayers.includes(e.type)) {
-        grouped[e.type].push({
-          type: "Feature",
-          properties: {
-            id: e.id,
-            heading: e.metadata.heading_deg ?? 0,
-          },
-          geometry: {
-            type: "Point",
-            coordinates: [e.position.lon, e.position.lat],
-          },
-        });
-      }
-    });
+  const queueSourceSync = useCallback(() => {
+    if (updateTimerRef.current) {
+      clearTimeout(updateTimerRef.current);
+    }
 
-    (Object.keys(LAYER_MAP) as LayerKey[]).forEach((type) => {
-      const source = map.getSource(`source-${type}`) as maplibregl.GeoJSONSource;
-      if (source) {
-        source.setData({
-          type: "FeatureCollection",
-          features: grouped[type] || [],
-        });
-
-        if (map.getLayer(LAYER_MAP[type])) {
-          map.setLayoutProperty(
-            LAYER_MAP[type],
-            "visibility",
-            activeLayers.includes(type) ? "visible" : "none"
-          );
-
-          if (selectedEntityId) {
-            map.setPaintProperty(LAYER_MAP[type], "icon-opacity", [
-              "case",
-              ["==", ["get", "id"], selectedEntityId],
-              1,
-              0.25,
-            ]);
-            map.setLayoutProperty(LAYER_MAP[type], "icon-size", [
-              "case",
-              ["==", ["get", "id"], selectedEntityId],
-              BASE_ICON_SIZE[type] * 1.3,
-              BASE_ICON_SIZE[type],
-            ]);
-          } else {
-            map.setPaintProperty(LAYER_MAP[type], "icon-opacity", 1);
-            map.setLayoutProperty(LAYER_MAP[type], "icon-size", BASE_ICON_SIZE[type]);
-          }
-        }
-      }
-    });
-  }
+    updateTimerRef.current = setTimeout(() => {
+      syncSources();
+      updateTimerRef.current = null;
+    }, 200);
+  }, [syncSources]);
 
   useEffect(() => {
-    if (!mapContainerRef.current || mapRef.current) return;
+    if (!mapContainerRef.current || mapRef.current) {
+      return;
+    }
 
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
@@ -261,16 +379,18 @@ export default function MapCanvas() {
       ensureEntityIcons(map);
 
       (Object.keys(LAYER_MAP) as LayerKey[]).forEach((type) => {
-        if (!map.getSource(`source-${type}`)) {
-          map.addSource(`source-${type}`, {
+        if (!map.getSource(SOURCE_MAP[type])) {
+          map.addSource(SOURCE_MAP[type], {
             type: "geojson",
             data: { type: "FeatureCollection", features: [] },
           });
+        }
 
+        if (!map.getLayer(LAYER_MAP[type])) {
           map.addLayer({
             id: LAYER_MAP[type],
             type: "symbol",
-            source: `source-${type}`,
+            source: SOURCE_MAP[type],
             layout: {
               "icon-image":
                 type === "aircraft"
@@ -291,28 +411,29 @@ export default function MapCanvas() {
             },
             paint: {},
           });
-
-          map.on("click", LAYER_MAP[type], (e) => {
-            if (e.features && e.features.length > 0) {
-              const entityId = e.features[0].properties?.id;
-              const entity = useMapStore.getState().entities[entityId];
-              if (entity) {
-                useMapStore.getState().setSelectedEntity(entity);
-              }
-            }
-          });
-
-          map.on("mouseenter", LAYER_MAP[type], () => {
-            map.getCanvas().style.cursor = "pointer";
-          });
-          map.on("mouseleave", LAYER_MAP[type], () => {
-            map.getCanvas().style.cursor = "";
-          });
         }
+
+        map.on("click", LAYER_MAP[type], (e) => {
+          if (e.features && e.features.length > 0) {
+            const entityId = e.features[0].properties?.id;
+            const entity = useMapStore.getState().entities[entityId];
+            if (entity) {
+              useMapStore.getState().setSelectedEntity(entity);
+            }
+          }
+        });
+
+        map.on("mouseenter", LAYER_MAP[type], () => {
+          map.getCanvas().style.cursor = "pointer";
+        });
+        map.on("mouseleave", LAYER_MAP[type], () => {
+          map.getCanvas().style.cursor = "";
+        });
       });
-      
-      // Trigger initial sync manually once map is loaded and sources exist
-      syncMapData(useMapStore.getState());
+
+      setLayerVisibility(map, useMapStore.getState().activeLayers);
+      setSelectionStyles(map, useMapStore.getState().selectedEntity?.id ?? null);
+      queueSourceSync();
     });
 
     map.on("mousemove", (e) => {
@@ -324,35 +445,56 @@ export default function MapCanvas() {
     });
 
     map.on("click", (e) => {
-      // Find what was clicked.
       const features = map.queryRenderedFeatures(e.point, {
-        layers: Object.values(LAYER_MAP).filter(l => map.getLayer(l)),
+        layers: Object.values(LAYER_MAP).filter((layerId) => map.getLayer(layerId)),
       });
-      // If none of our entity layers were clicked, deselect.
       if (!features.length) {
         useMapStore.getState().setSelectedEntity(null);
       }
     });
 
+    map.on("moveend", queueSourceSync);
+    map.on("zoomend", queueSourceSync);
+
     mapRef.current = map;
     useMapStore.getState().setMapInstance(map);
 
     return () => {
+      if (updateTimerRef.current) {
+        clearTimeout(updateTimerRef.current);
+        updateTimerRef.current = null;
+      }
+
+      map.off("moveend", queueSourceSync);
+      map.off("zoomend", queueSourceSync);
       map.remove();
       useMapStore.getState().setMapInstance(null);
       mapRef.current = null;
     };
-  }, []);
+  }, [queueSourceSync]);
 
   useEffect(() => {
-    // Subscribe gives us continuous updates when items change
-    const unsubscribe = useMapStore.subscribe(syncMapData);
-    
-    // Attempt an initial sync
-    syncMapData(useMapStore.getState());
-    
-    return () => unsubscribe();
-  }, []);
+    entitiesRef.current = entities;
+    queueSourceSync();
+  }, [entities, queueSourceSync]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) {
+      return;
+    }
+
+    setLayerVisibility(map, activeLayers);
+  }, [activeLayers]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) {
+      return;
+    }
+
+    setSelectionStyles(map, selectedEntityId);
+  }, [selectedEntityId]);
 
   return (
     <>
