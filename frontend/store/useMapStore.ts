@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { Map as MapLibreMap } from 'maplibre-gl';
 // TODO: replace with ../../shared/contract.ts import
-import { Entity } from '@/types/contract';
+import { Entity, EntityType } from '@/types/contract';
 
 const LAYERS_STORAGE_KEY = 'godseye:layers';
 const ALL_LAYER_IDS = ['ship', 'aircraft', 'satellite', 'signal'] as const;
@@ -79,6 +79,7 @@ interface MapStore {
   selectedHistoryRouteId: string | null;
   mapInstance: MapLibreMap | null;
   updateEntity: (entity: Entity) => void;
+  applyEntityBatch: (entities: Entity[]) => void;
   removeEntity: (id: string) => void;
   setSelectedEntity: (entity: Entity | null) => void;
   toggleLayer: (layer: LayerId) => void;
@@ -89,9 +90,16 @@ interface MapStore {
   setSelectedHistoryRouteId: (id: string | null) => void;
   setMapInstance: (map: MapLibreMap | null) => void;
   getEntityCountByType: (type: LayerId) => number;
+  selectEntitiesByType: (type: EntityType) => Entity[];
+  selectCounts: () => {
+    aircraft: number;
+    ships: number;
+    satellites: number;
+    signals: number;
+  };
 }
 
-const initialLayerVisibility = readStoredLayers();
+const initialLayerVisibility = getDefaultLayerState();
 
 export const useMapStore = create<MapStore>((set, get) => ({
   entities: {},
@@ -107,6 +115,16 @@ export const useMapStore = create<MapStore>((set, get) => ({
     set((state) => ({
       entities: { ...state.entities, [entity.id]: entity },
     })),
+
+  applyEntityBatch: (entities) =>
+    set((state) => {
+      const next = { ...state.entities };
+      for (const entity of entities) {
+        next[entity.id] = entity;
+      }
+
+      return { entities: next };
+    }),
     
   removeEntity: (id) =>
     set((state) => {
@@ -162,5 +180,18 @@ export const useMapStore = create<MapStore>((set, get) => ({
   getEntityCountByType: (type) => {
     const entities = get().entities;
     return Object.values(entities).filter((entity) => entity.type === type).length;
+  },
+
+  selectEntitiesByType: (type) =>
+    Object.values(get().entities).filter((entity) => entity.type === type),
+
+  selectCounts: () => {
+    const entities = Object.values(get().entities);
+    return {
+      aircraft: entities.filter((entity) => entity.type === 'aircraft').length,
+      ships: entities.filter((entity) => entity.type === 'ship').length,
+      satellites: entities.filter((entity) => entity.type === 'satellite').length,
+      signals: entities.filter((entity) => entity.type === 'signal').length,
+    };
   },
 }));
