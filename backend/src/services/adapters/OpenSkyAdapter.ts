@@ -13,7 +13,14 @@ const openSkyResponseSchema = z.object({
   states: z.array(z.unknown()).nullable(),
 });
 
-export async function fetchOpenSkyStates(): Promise<Entity[]> {
+export type OpenSkyBbox = {
+  lamin: number;
+  lamax: number;
+  lomin: number;
+  lomax: number;
+};
+
+export async function fetchOpenSkyStates(bbox?: OpenSkyBbox): Promise<Entity[]> {
   try {
     const username = process.env.OPENSKY_USERNAME || process.env.OPENSKY_EMAIL || "";
     const password = process.env.OPENSKY_PASSWORD || process.env.OPENSKY_CLIENT_SECRET || "";
@@ -29,6 +36,14 @@ export async function fetchOpenSkyStates(): Promise<Entity[]> {
 
     const response = await axios.get("https://api.opensky-network.org/states/all", {
       headers,
+      params: bbox
+        ? {
+            lamin: bbox.lamin,
+            lamax: bbox.lamax,
+            lomin: bbox.lomin,
+            lomax: bbox.lomax,
+          }
+        : undefined,
       timeout: 15000,
     });
 
