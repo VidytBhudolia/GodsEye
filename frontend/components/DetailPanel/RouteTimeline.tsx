@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ChevronRight, Clock3 } from "lucide-react";
 import { useMapStore } from "@/store/useMapStore";
 import type { EntityType } from "@/types/contract";
+import { buildBackendUrl } from "@/lib/backendUrl";
 
 type RouteHistoryItem = {
   id: string;
@@ -141,10 +142,13 @@ export default function RouteTimeline({ entityId, entityType }: RouteTimelinePro
       setHasError(false);
 
       try {
-        const response = await fetch(`/api/history/${encodeURIComponent(entityId)}/routes`, {
+        const response = await fetch(
+          buildBackendUrl(`/api/history/${encodeURIComponent(entityId)}/routes`),
+          {
           method: "GET",
           signal: controller.signal,
-        });
+          }
+        );
 
         if (!response.ok) {
           throw new Error("Route history request failed");

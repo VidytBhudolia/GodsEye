@@ -1,8 +1,12 @@
 import { create } from "zustand";
 import { useMapStore } from "@/store/useMapStore";
+import { buildBackendUrl } from "@/lib/backendUrl";
 
 const ALERT_LIMIT = 50;
-const ALERTS_BASE_PATH = "/api/alerts";
+
+function alertsEndpoint(path = ""): string {
+  return buildBackendUrl(`/api/alerts${path}`);
+}
 
 export type AlertSeverity = "critical" | "high" | "medium" | "low";
 
@@ -87,7 +91,7 @@ export const useAlertsStore = create<AlertsStore>((set, get) => ({
 
   hydrateAlerts: async () => {
     try {
-      const response = await fetch(`${ALERTS_BASE_PATH}?limit=${ALERT_LIMIT}`);
+      const response = await fetch(`${alertsEndpoint()}?limit=${ALERT_LIMIT}`);
       if (!response.ok) {
         return;
       }
@@ -114,7 +118,7 @@ export const useAlertsStore = create<AlertsStore>((set, get) => ({
 
   refreshUnreadCount: async () => {
     try {
-      const response = await fetch(`${ALERTS_BASE_PATH}/unread-count`);
+      const response = await fetch(alertsEndpoint("/unread-count"));
       if (!response.ok) {
         return;
       }
@@ -140,7 +144,7 @@ export const useAlertsStore = create<AlertsStore>((set, get) => ({
     });
 
     try {
-      await fetch(`${ALERTS_BASE_PATH}/${encodeURIComponent(alertId)}/ack`, {
+      await fetch(alertsEndpoint(`/${encodeURIComponent(alertId)}/ack`), {
         method: "POST",
       });
     } catch {
@@ -158,7 +162,7 @@ export const useAlertsStore = create<AlertsStore>((set, get) => ({
     });
 
     try {
-      await fetch(`${ALERTS_BASE_PATH}/ack-all`, {
+      await fetch(alertsEndpoint("/ack-all"), {
         method: "POST",
       });
     } catch {

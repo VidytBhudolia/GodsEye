@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { LoaderCircle, RotateCcw } from "lucide-react";
+import { buildBackendUrl } from "@/lib/backendUrl";
 
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
@@ -121,7 +122,7 @@ export default function AIAnalysis({ entityId }: AIAnalysisProps) {
     }, 10000);
 
     try {
-      const response = await fetch(`/api/analysis/${encodeURIComponent(entityId)}`, {
+      const response = await fetch(buildBackendUrl(`/api/analysis/${encodeURIComponent(entityId)}`), {
         method: "POST",
         signal: controller.signal,
       });

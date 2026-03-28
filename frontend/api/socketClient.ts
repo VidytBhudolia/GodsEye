@@ -3,6 +3,7 @@ import { io, Socket } from 'socket.io-client';
 import { Entity } from '@/types/contract';
 import { useMapStore } from '@/store/useMapStore';
 import { useAlertsStore } from '@/store/useAlertsStore';
+import { getBackendBaseUrl } from '@/lib/backendUrl';
 
 type AlertEventPayload = {
   id?: string;
@@ -41,7 +42,7 @@ class SocketClient {
 
     useMapStore.getState().setSocketConnected(false);
     
-    this.socket = io('http://localhost:4000', {
+    this.socket = io(getBackendBaseUrl(), {
       transports: ['websocket'],
     });
 
