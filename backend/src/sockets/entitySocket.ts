@@ -1,9 +1,11 @@
 import { Server as SocketIOServer } from "socket.io";
+import { initializeEntityBatchBroadcaster } from "../websocket";
 
 let ioInstance: SocketIOServer | null = null;
 
 export function registerEntitySocket(io: SocketIOServer): void {
   ioInstance = io;
+  initializeEntityBatchBroadcaster(io);
   
   io.on("connection", (socket) => {
     console.log(`[Socket] Client connected: ${socket.id}`);

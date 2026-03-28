@@ -1,2 +1,2 @@
-// WebSocket barrel exports — entity socket registered in server.ts
-export {};
+// WebSocket barrel exports
+export { enqueueEntityUpdate, initializeEntityBatchBroadcaster, getEntityBatchQueueSize } from "./broadcast";

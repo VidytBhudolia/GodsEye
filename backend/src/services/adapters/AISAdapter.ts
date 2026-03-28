@@ -1,7 +1,7 @@
 import WebSocket from "ws";
 import { z } from "zod";
 import { normalizeAisMessage } from "./Normalizer";
-import { getIO } from "../../sockets/entitySocket";
+import { enqueueEntityUpdate } from "../../websocket";
 import { upsertEntities } from "../database/supabaseClient";
 import { writeHistorySnapshot } from "../database/historyWriter";
 import dotenv from "dotenv";
@@ -59,8 +59,7 @@ export function startAisStream(retryCount = 0) {
 
       const entity = normalizeAisMessage(parsed.data);
       if (entity) {
-        const io = getIO();
-        if (io) io.emit("entity:update", entity);
+        enqueueEntityUpdate(entity);
 
         writeHistorySnapshot(entity);
         

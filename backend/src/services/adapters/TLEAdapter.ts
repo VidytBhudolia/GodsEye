@@ -11,7 +11,7 @@ import { z } from "zod";
 import { Entity } from "../../../../shared/contract";
 import { logger } from "../../utils";
 import { cacheGet, cacheSet } from "../cache/redisClient";
-import { getIO } from "../../sockets/entitySocket";
+import { enqueueEntityUpdate } from "../../websocket";
 
 const TLE_CACHE_KEY = "tle:all";
 const TLE_CACHE_TTL_SECONDS = 12 * 60 * 60;
@@ -210,8 +210,7 @@ async function ensureTlesLoaded(): Promise<TleMember[]> {
 }
 
 function emitSatelliteUpdates(): void {
-  const io = getIO();
-  if (!io || !inMemoryTles.length) {
+  if (!inMemoryTles.length) {
     return;
   }
 
@@ -219,7 +218,7 @@ function emitSatelliteUpdates(): void {
   for (const tle of inMemoryTles) {
     const entity = toEntity(tle, now);
     if (entity) {
-      io.emit("entity:update", entity);
+      enqueueEntityUpdate(entity);
     }
   }
 }

@@ -2,7 +2,7 @@ import { fetchOpenSkyStates } from "../services/adapters/OpenSkyAdapter";
 import { cacheExists, cacheSet, cacheGet } from "../services/cache/redisClient";
 import { upsertEntities } from "../services/database/supabaseClient";
 import { writeHistorySnapshot } from "../services/database/historyWriter";
-import { getIO } from "../sockets/entitySocket";
+import { enqueueEntityUpdate } from "../websocket";
 import { logger } from "../utils";
 
 export function startOpenSkyPolling() {
@@ -13,11 +13,10 @@ export function startOpenSkyPolling() {
       const exists = await cacheExists("opensky:states:all");
       if (exists) {
         logger.info("OpenSky fetch skipped; using cache.");
-        // Emit from cache directly
+        // Emit from cache through the batch broadcaster.
         const cachedEntities = await cacheGet<any[]>("opensky:states:all");
-        const io = getIO();
-        if (io && cachedEntities) {
-           cachedEntities.forEach(e => io.emit("entity:update", e));
+        if (cachedEntities) {
+          cachedEntities.forEach((entity) => enqueueEntityUpdate(entity));
         }
         return;
       }
@@ -30,12 +29,8 @@ export function startOpenSkyPolling() {
 
       entities.forEach((entity) => {
         writeHistorySnapshot(entity);
+        enqueueEntityUpdate(entity);
       });
-      
-      const io = getIO();
-      if (io) {
-        entities.forEach(entity => io.emit("entity:update", entity));
-      }
       
       logger.info("OpenSky saved and emitted entities.", { count: entities.length });
     } catch (err: any) {
