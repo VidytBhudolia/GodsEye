@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import { useMapStore } from "@/store/useMapStore";
 import type { Entity } from "@/types/contract";
@@ -304,11 +304,13 @@ export default function MapCanvas() {
   const entities = useMapStore((state) => state.entities);
   const activeLayers = useMapStore((state) => state.activeLayers);
   const selectedEntityId = useMapStore((state) => state.selectedEntity?.id ?? null);
+  const hasReceivedEntityData = useMapStore((state) => state.hasReceivedEntityData);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const entitiesRef = useRef<Record<string, Entity>>(entities);
   const updateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
 
   const syncSources = useCallback(() => {
     const map = mapRef.current;
@@ -377,6 +379,7 @@ export default function MapCanvas() {
 
     map.on("load", () => {
       ensureEntityIcons(map);
+      setMapLoaded(true);
 
       (Object.keys(LAYER_MAP) as LayerKey[]).forEach((type) => {
         if (!map.getSource(SOURCE_MAP[type])) {
@@ -470,6 +473,7 @@ export default function MapCanvas() {
       map.remove();
       useMapStore.getState().setMapInstance(null);
       mapRef.current = null;
+      setMapLoaded(false);
     };
   }, [queueSourceSync]);
 
@@ -499,6 +503,18 @@ export default function MapCanvas() {
   return (
     <>
       <div ref={mapContainerRef} className="absolute inset-0 h-full w-full" />
+      {!mapLoaded && (
+        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-[#080A0F]">
+          <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#22C55E]" />
+        </div>
+      )}
+      <div
+        className={`pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-md border border-[#1E2130] bg-[#0F1117]/90 px-3 py-1 text-[11px] font-mono text-[#64748B] transition-opacity duration-300 ${
+          mapLoaded && !hasReceivedEntityData ? "opacity-100" : "opacity-0"
+        }`}
+      >
+        Connecting to data feeds...
+      </div>
       <RouteLayer />
     </>
   );

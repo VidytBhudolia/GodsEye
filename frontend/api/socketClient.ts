@@ -25,6 +25,8 @@ class SocketClient {
   
   connect() {
     if (this.socket) return;
+
+    useMapStore.getState().setSocketConnected(false);
     
     this.socket = io('http://localhost:4000', {
       transports: ['websocket'],
@@ -42,6 +44,18 @@ class SocketClient {
     this.socket.on('entity_update', handleEntityUpdate);
     this.socket.on('entity:update', handleEntityUpdate);
     this.socket.on('entity:batch', handleEntityBatch);
+
+    this.socket.on('connect', () => {
+      useMapStore.getState().setSocketConnected(true);
+    });
+
+    this.socket.on('disconnect', () => {
+      useMapStore.getState().setSocketConnected(false);
+    });
+
+    this.socket.on('connect_error', () => {
+      useMapStore.getState().setSocketConnected(false);
+    });
   }
 
   disconnect() {
@@ -49,6 +63,8 @@ class SocketClient {
       this.socket.disconnect();
       this.socket = null;
     }
+
+    useMapStore.getState().setSocketConnected(false);
 
     if (this.raf !== null) {
       window.cancelAnimationFrame(this.raf);

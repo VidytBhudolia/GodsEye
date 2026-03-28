@@ -71,6 +71,8 @@ function getActiveLayersFromState(layerState: Record<LayerId, boolean>): LayerId
 
 interface MapStore {
   entities: Record<string, Entity>;
+  hasReceivedEntityData: boolean;
+  socketConnected: boolean;
   selectedEntity: Entity | null;
   activeLayers: LayerId[];
   layerVisibility: Record<LayerId, boolean>;
@@ -89,6 +91,7 @@ interface MapStore {
   clearHistoricalRoute: () => void;
   setSelectedHistoryRouteId: (id: string | null) => void;
   setMapInstance: (map: MapLibreMap | null) => void;
+  setSocketConnected: (connected: boolean) => void;
   getEntityCountByType: (type: LayerId) => number;
   selectEntitiesByType: (type: EntityType) => Entity[];
   selectCounts: () => {
@@ -103,6 +106,8 @@ const initialLayerVisibility = getDefaultLayerState();
 
 export const useMapStore = create<MapStore>((set, get) => ({
   entities: {},
+  hasReceivedEntityData: false,
+  socketConnected: false,
   selectedEntity: null,
   activeLayers: getActiveLayersFromState(initialLayerVisibility),
   layerVisibility: initialLayerVisibility,
@@ -114,6 +119,7 @@ export const useMapStore = create<MapStore>((set, get) => ({
   updateEntity: (entity) =>
     set((state) => ({
       entities: { ...state.entities, [entity.id]: entity },
+      hasReceivedEntityData: true,
     })),
 
   applyEntityBatch: (entities) =>
@@ -123,7 +129,10 @@ export const useMapStore = create<MapStore>((set, get) => ({
         next[entity.id] = entity;
       }
 
-      return { entities: next };
+      return {
+        entities: next,
+        hasReceivedEntityData: true,
+      };
     }),
     
   removeEntity: (id) =>
@@ -176,6 +185,8 @@ export const useMapStore = create<MapStore>((set, get) => ({
   setSelectedHistoryRouteId: (id) => set({ selectedHistoryRouteId: id }),
 
   setMapInstance: (map) => set({ mapInstance: map }),
+
+  setSocketConnected: (connected) => set({ socketConnected: connected }),
 
   getEntityCountByType: (type) => {
     const entities = get().entities;
