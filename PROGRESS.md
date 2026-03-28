@@ -1,65 +1,77 @@
 # GodsEye Technical Progress & Handoff Document
 
-**Project Status:** Tactical UI Complete | Backend Data Feeds in Progress  
-**Last Updated:** March 27, 2026
+**Project Status:** Backend Core Refactor Complete | Phase 3: AI Enrichment Active  
+**Last Updated:** March 28, 2026
 
 ---
 
 ## 1. System Architecture
 
-The project is divided into three main layers: `frontend`, `backend`, and `shared`.
+The project is structured into three primary layers to ensure separation of concerns and type safety.
 
 ### A. Shared Contract (`/shared/contract.ts`)
-The single source of truth for TypeScript types. All services (AIS, OpenSky, Satellites) must be normalized to the `Entity` interface.
+- **Source of Truth**: Defines the `Entity`, `Position`, `Metadata`, and `EntityType` interfaces.
+- **Normalization Target**: All external feeds (AIS, OpenSky, Satellites) are normalized to this schema.
+- **Resolution**: Frontend imports are now resolved via a `@shared` alias in `tsconfig.json` to avoid fragile relative paths.
 
 ### B. Frontend (Next.js 14 + Tailwind v4 + Zustand)
-- **State**: Managed in `useMapStore.ts`. Do not use Redux.
-- **Map**: MapLibre GL JS centered on tactical situational awareness.
-- **Interactivity**: Sidebar toggles filter layers via Zustand. Clicking an entity on the map triggers the `DetailPanel`.
-- **Mocking**: `useMockEntities.ts` provides a high-fidelity simulation for UI testing. Toggle via `NEXT_PUBLIC_USE_MOCK=true`.
+- **State Management**: `useMapStore.ts` (Zustand) handles map state, selected entities, and visibility toggles.
+- **Tactical UI**: 
+  - **Sidebar**: Independent layer toggling (Ships, Planes, Satellites).
+  - **DetailPanel**: Real-time telemetry inspector with smooth slide-in/out animations.
+  - **TopNav**: Aggregated active counts and UTC tactical clock.
+- **Real-time Map**: MapLibre GL JS driven by tactical situational awareness icons.
 
 ### C. Backend (Express + Socket.io + Redis + Supabase)
-- **Adapters**: Located in `src/services/adapters/`.
-  - `AISAdapter`: WebSocket stream from aisstream.io.
-  - `OpenSkyAdapter`: REST polling from OpenSky Network.
-- **Normalizer**: `Normalizer.ts` converts external raw data into our `Entity` schema.
-- **Real-time**: Normalized entities are emitted via `io.emit("entity:update", entity)`.
+- **Normalization Layer**: `Normalizer.ts` converts heterogeneous data:
+  - **Aviation**: Maps OpenSky state vectors (ICAO24, velocity, altitude) to `Entity`.
+  - **Maritime**: Maps AIS Stream messages (PositionReport, ShipStaticData) including destination and ETA.
+- **Data Adapters**:
+  - `AISAdapter`: WebSocket stream client with reconnection logic.
+  - `OpenSkyAdapter`: REST-based poller with bounded-box optimization.
+- **Persistence**: 
+  - **PostgreSQL/PostGIS**: Live entity state and spatial history stored in Supabase.
+  - **Redis**: Caching layer for high-frequency updates and feed status.
 
 ---
 
 ## 2. Work Completed to Date
 
-### Phase 1: Infrastructure
-- Supabase schema initialized with PostGIS spatial indexing.
-- Express server and Next.js boilerplate established.
-- Basic map rendering verified.
+### Phase 1: Infrastructure (Complete)
+- [x] Next.js/Express dual-scaffold.
+- [x] Supabase PostGIS spatial tables initialized.
+- [x] Shared type contract established and linked.
 
-### Phase 2: Tactical UI (Current State)
-- **TopNav**: Logo, live UTC clock, and aggregate counters.
-- **Sidebar**: Layer toggles with active detection status.
-- **DetailPanel**: Telemetry inspector with slide-in animation.
-- **StatusBar**: Mouse coordinate tracking.
+### Phase 2: Core Data Loop (Complete)
+- [x] **Adapters**: Functional AIS Stream and OpenSky integrations.
+- [x] **Normalization**: Verified mapping of ship/plane telemetry to the central schema.
+- [x] **Socket Layer**: Real-time broadcast of `entity:update` events.
+- [x] **Tactical Dashboard**: Layout, Sidebar, and DetailPanel linked to Zustand.
+- [x] **Module Resolution Fix**: Resolved critical TypeScript resolution issues for shared types in the frontend.
 
-### Phase 3: Live Data (Active)
-- **Normalizer Service**: Developed and verified against AIS/OpenSky specs.
-- **WebSocket Sink**: Socket.io logic is ready to broadcast real-world telemetry.
+### Phase 3: Enrichment & Refinement (Active)
+- [/] **AI Summarizer**: Integrating Groq for generating AI-assisted tactical summaries in the `DetailPanel`.
+- [/] **History Tracking**: Storing and retrieving historical paths in the map view.
+- [/] **UI Polish**: Iterating on visual fidelity based on `screenshots/` reference.
 
 ---
 
 ## 3. Immediate Next Steps (Handoff)
 
-1. **Backend Stabilization**:
-   - Ensure `AIS_STREAM_API_KEY` and `OPENSKY_CLIENT_SECRET` are correctly injected from `.env`.
-   - Update `fetchOpenSkyStates` in `OpenSkyAdapter.ts` to use a dynamic bounding box instead of global to save credits.
-2. **Database Integration**:
-   - Implement `upsertEntities` in `supabaseClient.ts` to persist live positions for history tracking.
-3. **Frontend Phase 3**:
-   - Refactor `MapCanvas` to use `@/shared/contract` directly.
-   - Disable mocks and verify live movement from the backend socket.
+1. **Phase 3: AI Enrichment**:
+   - Finalize the `Research Agent` loop to pull public intelligence derived from ICAO24/MMSI identifiers.
+   - Implement the `ai_summary` field in the `DetailPanel` using the Groq-powered summary endpoint.
+2. **Spatial Analytics**:
+   - Implement "Detection Hub" logic to identify entities entering specific bounding boxes.
+3. **Security Audit**:
+   - Perform final review of `.env` handling to ensure no production secrets are leaked in dev logs.
+4. **Performance Tuning**:
+   - Optimize the MapLibre layer for high-density entity counts (1k+ entities).
 
 ---
 
 ## 4. Key References
 - **Tech Stack**: `docs/Tech_Stack.md`
 - **UI Spec**: `docs/UI_Spec.md`
-- **Database**: `Supabase Dashboard` (PostGIS tables: `entities`, `position_history`)
+- **Agents**: `Agents.md` (Defines roles for GodsEye development)
+- **Database**: Supabase `entities` and `position_history` tables.
