@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { shallow } from "zustand/shallow";
+import { useShallow } from "zustand/react/shallow";
 import { useMapStore } from "@/store/useMapStore";
 
 export default function StatusBar() {
-  const counts = useMapStore((state) => state.selectCounts(), shallow);
+  const counts = useMapStore(useShallow((state) => state.selectCounts()));
   const cursorCoords = useMapStore((state) => state.cursorCoords);
   const socketConnected = useMapStore((state) => state.socketConnected);
   const [utcTime, setUtcTime] = useState("");

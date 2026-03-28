@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { Ship, Plane, Satellite, Radio, Settings } from "lucide-react";
-import { shallow } from "zustand/shallow";
+import { useShallow } from "zustand/react/shallow";
 import { useMapStore } from "@/store/useMapStore";
 import LayerToggle from "./LayerToggle";
 
@@ -10,14 +10,13 @@ type LayerId = "ship" | "aircraft" | "satellite" | "signal";
 
 export default function Sidebar() {
   const { layerVisibility, toggleLayer, hydrateLayers } = useMapStore(
-    (state) => ({
+    useShallow((state) => ({
       layerVisibility: state.layerVisibility,
       toggleLayer: state.toggleLayer,
       hydrateLayers: state.hydrateLayers,
-    }),
-    shallow
+    }))
   );
-  const counts = useMapStore((state) => state.selectCounts(), shallow);
+  const counts = useMapStore(useShallow((state) => state.selectCounts()));
 
   useEffect(() => {
     hydrateLayers();
