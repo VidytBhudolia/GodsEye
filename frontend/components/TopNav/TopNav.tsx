@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useMapStore } from "@/store/useMapStore";
 import SearchBar from "./SearchBar";
+import AlertsBadge from "@/components/Alerts/AlertsBadge";
 
 export default function TopNav() {
   const [time, setTime] = useState("");
@@ -39,6 +40,8 @@ export default function TopNav() {
           <span className="text-[#64748B] text-[10px] uppercase tracking-wider">Live Entities</span>
           <span className="text-[#38BDF8] font-semibold">{totalTracked.toLocaleString()}</span>
         </div>
+
+        <AlertsBadge />
 
         {/* Clock */}
         <div className="text-sm font-mono text-[#F8FAFC] min-w-[200px] text-right">

@@ -2,6 +2,19 @@ import { io, Socket } from 'socket.io-client';
 // TODO: replace with ../../shared/contract.ts import
 import { Entity } from '@/types/contract';
 import { useMapStore } from '@/store/useMapStore';
+import { useAlertsStore } from '@/store/useAlertsStore';
+
+type AlertEventPayload = {
+  id?: string;
+  entityId?: string;
+  entity_id?: string;
+  title?: string;
+  message?: string;
+  severity?: string;
+  timestamp?: string;
+  createdAt?: string;
+  acknowledged?: boolean;
+};
 
 class SocketClient {
   private socket: Socket | null = null;
@@ -41,12 +54,27 @@ class SocketClient {
       useMapStore.getState().applyEntityBatch(entities);
     };
 
+    const handleAlertEvent = (payload: AlertEventPayload) => {
+      useAlertsStore.getState().addAlert({
+        id: payload.id,
+        entityId: payload.entityId ?? payload.entity_id,
+        title: payload.title ?? 'Entity alert',
+        message: payload.message ?? 'An entity raised an operational alert.',
+        severity: payload.severity as 'critical' | 'high' | 'medium' | 'low' | undefined,
+        timestamp: payload.timestamp ?? payload.createdAt,
+        acknowledged: payload.acknowledged,
+      });
+    };
+
     this.socket.on('entity_update', handleEntityUpdate);
     this.socket.on('entity:update', handleEntityUpdate);
     this.socket.on('entity:batch', handleEntityBatch);
+    this.socket.on('alert:new', handleAlertEvent);
 
     this.socket.on('connect', () => {
       useMapStore.getState().setSocketConnected(true);
+      void useAlertsStore.getState().hydrateAlerts();
+      void useAlertsStore.getState().refreshUnreadCount();
     });
 
     this.socket.on('disconnect', () => {

@@ -4,6 +4,7 @@ import TopNav from "@/components/TopNav/TopNav";
 import Sidebar from "@/components/Sidebar/Sidebar";
 import DetailPanel from "@/components/DetailPanel/DetailPanel";
 import StatusBar from "@/components/StatusBar/StatusBar";
+import AlertsPanel from "@/components/Alerts/AlertsPanel";
 
 export const viewport: Viewport = {
   themeColor: "#080A0F",
@@ -29,6 +30,7 @@ export default function RootLayout({
             {children}
           </main>
           <DetailPanel />
+          <AlertsPanel />
         </div>
         <StatusBar />
       </body>

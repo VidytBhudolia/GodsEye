@@ -1,14 +1,24 @@
 "use client";
 
+import { useEffect } from "react";
 import { useMapStore } from "@/store/useMapStore";
 import { formatDistanceToNow } from "date-fns";
 import { X } from "lucide-react";
+import { useAlertsStore } from "@/store/useAlertsStore";
 import AIAnalysis from "./AIAnalysis";
 import RouteTimeline from "./RouteTimeline";
 
 export default function DetailPanel() {
   const selectedEntity = useMapStore((state) => state.selectedEntity);
   const setSelectedEntity = useMapStore((state) => state.setSelectedEntity);
+  const alertsPanelOpen = useAlertsStore((state) => state.panelOpen);
+  const closeAlertsPanel = useAlertsStore((state) => state.closePanel);
+
+  useEffect(() => {
+    if (selectedEntity && alertsPanelOpen) {
+      closeAlertsPanel();
+    }
+  }, [alertsPanelOpen, closeAlertsPanel, selectedEntity]);
 
   return (
     <aside className="w-[340px] bg-[#0F1117]/90 backdrop-blur-md border-l border-[#1E2130] shrink-0 relative overflow-hidden z-30">
