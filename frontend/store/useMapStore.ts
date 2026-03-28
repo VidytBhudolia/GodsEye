@@ -7,6 +7,7 @@ const LAYERS_STORAGE_KEY = 'godseye:layers';
 const ALL_LAYER_IDS = ['ship', 'aircraft', 'satellite', 'signal'] as const;
 
 type LayerId = typeof ALL_LAYER_IDS[number];
+export type MapTab = 'live' | 'history' | 'reports' | 'alerts';
 
 const FILTERABLE_ENTITY_TYPES: EntityType[] = [
   'ship',
@@ -152,6 +153,7 @@ interface MapStore {
   hasReceivedEntityData: boolean;
   socketConnected: boolean;
   selectedEntity: Entity | null;
+  activeTab: MapTab;
   filters: EntityFilters;
   activeLayers: LayerId[];
   layerVisibility: Record<LayerId, boolean>;
@@ -171,6 +173,7 @@ interface MapStore {
   setSelectedHistoryRouteId: (id: string | null) => void;
   setMapInstance: (map: MapLibreMap | null) => void;
   setSocketConnected: (connected: boolean) => void;
+  setActiveTab: (tab: MapTab) => void;
   setCountryFilter: (countries: string[]) => void;
   setEntityTypeFilter: (entityType: EntityType, enabled: boolean) => void;
   setStatusFilter: (status: StatusFilter) => void;
@@ -194,6 +197,7 @@ export const useMapStore = create<MapStore>((set, get) => ({
   hasReceivedEntityData: false,
   socketConnected: false,
   selectedEntity: null,
+  activeTab: 'live',
   filters: getDefaultFilters(),
   activeLayers: getActiveLayersFromState(initialLayerVisibility),
   layerVisibility: initialLayerVisibility,
@@ -273,6 +277,8 @@ export const useMapStore = create<MapStore>((set, get) => ({
   setMapInstance: (map) => set({ mapInstance: map }),
 
   setSocketConnected: (connected) => set({ socketConnected: connected }),
+
+  setActiveTab: (tab) => set({ activeTab: tab }),
 
   setCountryFilter: (countries) =>
     set((state) => ({

@@ -52,6 +52,8 @@ export default function AlertsPanel() {
       setSelectedEntity: state.setSelectedEntity,
     }))
   );
+  const activeTab = useMapStore((state) => state.activeTab);
+  const setActiveTab = useMapStore((state) => state.setActiveTab);
 
   useEffect(() => {
     if (panelOpen) {
@@ -81,7 +83,15 @@ export default function AlertsPanel() {
       });
     }
 
+    setActiveTab("live");
     closePanel();
+  };
+
+  const handleClosePanel = () => {
+    closePanel();
+    if (activeTab === "alerts") {
+      setActiveTab("live");
+    }
   };
 
   return (
@@ -99,7 +109,7 @@ export default function AlertsPanel() {
           </div>
           <button
             type="button"
-            onClick={closePanel}
+            onClick={handleClosePanel}
             className="rounded-md border border-[#1E2130] bg-[#141824] p-1.5 text-[#64748B] transition-colors hover:text-[#F8FAFC]"
             aria-label="Close alerts panel"
           >

@@ -3,20 +3,36 @@
 import { Bell } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { useAlertsStore } from "@/store/useAlertsStore";
+import { useMapStore } from "@/store/useMapStore";
 
 export default function AlertsBadge() {
-  const { unreadCount, panelOpen, togglePanel } = useAlertsStore(
+  const { unreadCount, panelOpen, setPanelOpen } = useAlertsStore(
     useShallow((state) => ({
       unreadCount: state.unreadCount,
       panelOpen: state.panelOpen,
-      togglePanel: state.togglePanel,
+      setPanelOpen: state.setPanelOpen,
     }))
   );
+  const activeTab = useMapStore((state) => state.activeTab);
+  const setActiveTab = useMapStore((state) => state.setActiveTab);
+
+  const handleToggle = () => {
+    if (panelOpen) {
+      setPanelOpen(false);
+      if (activeTab === "alerts") {
+        setActiveTab("live");
+      }
+      return;
+    }
+
+    setActiveTab("alerts");
+    setPanelOpen(true);
+  };
 
   return (
     <button
       type="button"
-      onClick={togglePanel}
+      onClick={handleToggle}
       className={`relative flex h-10 w-10 items-center justify-center rounded-full border transition-colors ${
         panelOpen
           ? "border-[#22C55E] bg-[#166534] text-[#22C55E]"

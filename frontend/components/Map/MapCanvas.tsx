@@ -304,6 +304,7 @@ export default function MapCanvas() {
   const filteredEntities = useMapStore((state) => state.selectFilteredEntities());
   const activeLayers = useMapStore((state) => state.activeLayers);
   const selectedEntityId = useMapStore((state) => state.selectedEntity?.id ?? null);
+  const activeTab = useMapStore((state) => state.activeTab);
   const hasReceivedEntityData = useMapStore((state) => state.hasReceivedEntityData);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -311,6 +312,7 @@ export default function MapCanvas() {
   const entitiesRef = useRef<Entity[]>(filteredEntities);
   const updateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const hideMap = activeTab === "history" || activeTab === "reports";
 
   const syncSources = useCallback(() => {
     const map = mapRef.current;
@@ -501,7 +503,11 @@ export default function MapCanvas() {
   }, [selectedEntityId]);
 
   return (
-    <>
+    <div
+      className={`absolute inset-0 transition-opacity duration-200 ${
+        hideMap ? "pointer-events-none opacity-0" : "opacity-100"
+      }`}
+    >
       <div ref={mapContainerRef} className="absolute inset-0 h-full w-full" />
       {!mapLoaded && (
         <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-[#080A0F]">
@@ -516,6 +522,6 @@ export default function MapCanvas() {
         Connecting to data feeds...
       </div>
       <RouteLayer />
-    </>
+    </div>
   );
 }

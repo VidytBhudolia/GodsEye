@@ -4,12 +4,40 @@ import { useEffect, useState } from "react";
 import { useMapStore } from "@/store/useMapStore";
 import SearchBar from "./SearchBar";
 import AlertsBadge from "@/components/Alerts/AlertsBadge";
+import { useAlertsStore } from "@/store/useAlertsStore";
+
+const NAV_TABS = [
+  { id: "live", label: "LIVE VIEW" },
+  { id: "history", label: "HISTORY" },
+  { id: "reports", label: "REPORTS" },
+  { id: "alerts", label: "ALERTS" },
+] as const;
 
 export default function TopNav() {
   const [time, setTime] = useState("");
   const entities = useMapStore((state) => state.entities);
+  const activeTab = useMapStore((state) => state.activeTab);
+  const setActiveTab = useMapStore((state) => state.setActiveTab);
+  const setSelectedEntity = useMapStore((state) => state.setSelectedEntity);
+  const setAlertsPanelOpen = useAlertsStore((state) => state.setPanelOpen);
+  const closeAlertsPanel = useAlertsStore((state) => state.closePanel);
   
   const totalTracked = Object.keys(entities).length;
+
+  const handleTabChange = (tab: "live" | "history" | "reports" | "alerts") => {
+    setActiveTab(tab);
+
+    if (tab === "alerts") {
+      setAlertsPanelOpen(true);
+      return;
+    }
+
+    closeAlertsPanel();
+
+    if (tab === "history" || tab === "reports") {
+      setSelectedEntity(null);
+    }
+  };
 
   useEffect(() => {
     const updateTime = () => {
@@ -28,6 +56,26 @@ export default function TopNav() {
           <div className="w-3 h-3 rounded-full bg-[#080A0F]" />
         </div>
         <h1 className="text-lg font-semibold tracking-wide text-[#F8FAFC]">SENTINEL</h1>
+
+        <nav className="ml-3 flex items-center gap-1 rounded-full border border-[#1E2130] bg-[#141824]/70 p-1">
+          {NAV_TABS.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => handleTabChange(tab.id)}
+                className={`rounded-full px-3 py-1 text-[10px] font-semibold tracking-wider transition-colors ${
+                  isActive
+                    ? "bg-[#22C55E]/20 text-[#22C55E]"
+                    : "text-[#64748B] hover:text-[#F8FAFC]"
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </nav>
       </div>
 
       <div className="flex-1 flex justify-center">
