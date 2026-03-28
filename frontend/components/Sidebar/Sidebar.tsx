@@ -1,31 +1,27 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { Ship, Plane, Satellite, Radio, Settings } from "lucide-react";
+import { shallow } from "zustand/shallow";
 import { useMapStore } from "@/store/useMapStore";
 import LayerToggle from "./LayerToggle";
 
 type LayerId = "ship" | "aircraft" | "satellite" | "signal";
 
 export default function Sidebar() {
-  const activeLayers = useMapStore((state) => state.activeLayers);
-  const toggleLayer = useMapStore((state) => state.toggleLayer);
-  const hydrateLayers = useMapStore((state) => state.hydrateLayers);
-  const entities = useMapStore((state) => state.entities);
+  const { layerVisibility, toggleLayer, hydrateLayers } = useMapStore(
+    (state) => ({
+      layerVisibility: state.layerVisibility,
+      toggleLayer: state.toggleLayer,
+      hydrateLayers: state.hydrateLayers,
+    }),
+    shallow
+  );
+  const counts = useMapStore((state) => state.selectCounts(), shallow);
 
   useEffect(() => {
     hydrateLayers();
   }, [hydrateLayers]);
-
-  const counts = useMemo(() => {
-    const values = Object.values(entities);
-    return {
-      aircraft: values.filter((entity) => entity.type === "aircraft").length,
-      ship: values.filter((entity) => entity.type === "ship").length,
-      satellite: values.filter((entity) => entity.type === "satellite").length,
-      signal: values.filter((entity) => entity.type === "signal").length,
-    };
-  }, [entities]);
 
   const layers: Array<{ id: LayerId; icon: typeof Plane; label: string }> = [
     { id: "aircraft", icon: Plane, label: "Flights" },
@@ -42,7 +38,15 @@ export default function Sidebar() {
       
       <div className="flex flex-col gap-4">
         {layers.map((layer) => {
-          const isActive = activeLayers.includes(layer.id);
+          const isActive = layerVisibility[layer.id];
+          const layerCount =
+            layer.id === "aircraft"
+              ? counts.aircraft
+              : layer.id === "ship"
+              ? counts.ships
+              : layer.id === "satellite"
+              ? counts.satellites
+              : counts.signals;
           
           return (
             <LayerToggle
@@ -50,7 +54,7 @@ export default function Sidebar() {
               label={layer.label}
               icon={layer.icon}
               active={isActive}
-              count={counts[layer.id as keyof typeof counts]}
+              count={layerCount}
               onClick={() => toggleLayer(layer.id)}
             />
           );

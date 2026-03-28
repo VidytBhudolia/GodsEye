@@ -1,20 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { shallow } from "zustand/shallow";
 import { useMapStore } from "@/store/useMapStore";
 
 export default function StatusBar() {
-  const { cursorCoords, entities } = useMapStore();
-
-  const counts = useMemo(() => {
-    const values = Object.values(entities);
-    return {
-      aircraft: values.filter((entity) => entity.type === "aircraft").length,
-      satellite: values.filter((entity) => entity.type === "satellite").length,
-      ship: values.filter((entity) => entity.type === "ship").length,
-      signal: values.filter((entity) => entity.type === "signal").length,
-    };
-  }, [entities]);
+  const counts = useMapStore((state) => state.selectCounts(), shallow);
+  const cursorCoords = useMapStore((state) => state.cursorCoords);
 
   return (
     <footer className="h-8 bg-[#0F1117] border-t border-[#1E2130] flex items-center justify-between px-4 text-[11px] font-mono text-[#64748B] z-40 shrink-0">
@@ -23,13 +14,13 @@ export default function StatusBar() {
           ✈ <span className="text-[#22C55E]">{counts.aircraft.toLocaleString()}</span> FLIGHTS
         </span>
         <span>
-          🛰 <span className="text-[#22C55E]">{counts.satellite.toLocaleString()}</span> SATELLITES
+          🛰 <span className="text-[#22C55E]">{counts.satellites.toLocaleString()}</span> SATELLITES
         </span>
         <span>
-          ⚓ <span className="text-[#22C55E]">{counts.ship.toLocaleString()}</span> SHIPS
+          ⚓ <span className="text-[#22C55E]">{counts.ships.toLocaleString()}</span> SHIPS
         </span>
         <span>
-          📻 <span className="text-[#22C55E]">{counts.signal.toLocaleString()}</span> SIGNALS
+          📻 <span className="text-[#22C55E]">{counts.signals.toLocaleString()}</span> SIGNALS
         </span>
       </div>
       

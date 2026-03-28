@@ -7,7 +7,8 @@ import AIAnalysis from "./AIAnalysis";
 import RouteTimeline from "./RouteTimeline";
 
 export default function DetailPanel() {
-  const { selectedEntity, setSelectedEntity } = useMapStore();
+  const selectedEntity = useMapStore((state) => state.selectedEntity);
+  const setSelectedEntity = useMapStore((state) => state.setSelectedEntity);
 
   return (
     <aside className="w-[340px] bg-[#0F1117]/90 backdrop-blur-md border-l border-[#1E2130] shrink-0 relative overflow-hidden z-30">
