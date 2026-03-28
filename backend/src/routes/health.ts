@@ -138,10 +138,11 @@ router.get("/health", async (_req: Request, res: Response) => {
     getSupabaseHealth(),
   ]);
 
-  const allHealthy = redisHealth.status === "healthy" && supabaseHealth.status === "healthy";
-  const status = allHealthy ? "ok" : "degraded";
+  const redis = redisHealth.status === "healthy";
+  const supabase = supabaseHealth.status === "healthy";
+  const state = redis && supabase ? "healthy" : "degraded";
 
-  if (!allHealthy) {
+  if (!redis || !supabase) {
     logger.warn("Health check degraded.", {
       redis: redisHealth.status,
       supabase: supabaseHealth.status,
@@ -149,7 +150,10 @@ router.get("/health", async (_req: Request, res: Response) => {
   }
 
   res.status(200).json({
-    status,
+    status: "ok",
+    redis,
+    supabase,
+    state,
     timestamp: new Date().toISOString(),
     uptime_seconds: Math.floor(process.uptime()),
     dependencies: {
