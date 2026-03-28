@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+set -e
+
+if grep -rn "gsk_\|AKIA\|client_secret\s*=" backend/src/ >/dev/null 2>&1; then
+  echo "Potential secret detected. Remove before committing."
+  exit 1
+fi
