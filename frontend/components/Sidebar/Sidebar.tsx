@@ -1,14 +1,24 @@
 "use client";
 
-import { useEffect } from "react";
-import { Ship, Plane, Satellite, Radio, Settings } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Ship,
+  Plane,
+  Satellite,
+  Radio,
+  Settings,
+  SlidersHorizontal,
+} from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { useMapStore } from "@/store/useMapStore";
 import LayerToggle from "./LayerToggle";
+import FilterPanel from "./FilterPanel";
 
 type LayerId = "ship" | "aircraft" | "satellite" | "signal";
 
 export default function Sidebar() {
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+
   const { layerVisibility, toggleLayer, hydrateLayers } = useMapStore(
     useShallow((state) => ({
       layerVisibility: state.layerVisibility,
@@ -17,6 +27,15 @@ export default function Sidebar() {
     }))
   );
   const counts = useMapStore(useShallow((state) => state.selectCounts()));
+  const filters = useMapStore((state) => state.filters);
+
+  const hasActiveFilters = useMemo(
+    () =>
+      filters.statusFilter !== "all" ||
+      filters.countries.length > 0 ||
+      filters.entityTypes.length !== 4,
+    [filters]
+  );
 
   useEffect(() => {
     hydrateLayers();
@@ -61,6 +80,18 @@ export default function Sidebar() {
       </div>
 
       <div className="mt-auto flex flex-col items-center gap-4">
+        <div className="relative">
+          <LayerToggle
+            label="Filters"
+            icon={SlidersHorizontal}
+            active={isFilterOpen}
+            onClick={() => setIsFilterOpen((open) => !open)}
+          />
+          {hasActiveFilters && (
+            <span className="absolute right-0 top-0 h-2.5 w-2.5 rounded-full border border-[#0F1117] bg-[#22C55E]" />
+          )}
+        </div>
+
         <LayerToggle
           label="Settings"
           icon={Settings}
@@ -72,6 +103,8 @@ export default function Sidebar() {
 
         <div className="w-8 h-8 rounded-full bg-[#141824] border border-[#1E2130]" />
       </div>
+
+      <FilterPanel open={isFilterOpen} onClose={() => setIsFilterOpen(false)} />
     </aside>
   );
 }

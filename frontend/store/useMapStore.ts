@@ -8,6 +8,84 @@ const ALL_LAYER_IDS = ['ship', 'aircraft', 'satellite', 'signal'] as const;
 
 type LayerId = typeof ALL_LAYER_IDS[number];
 
+const FILTERABLE_ENTITY_TYPES: EntityType[] = [
+  'ship',
+  'aircraft',
+  'satellite',
+  'signal',
+];
+
+type StatusFilter = 'all' | 'active' | 'inactive';
+
+export type EntityFilters = {
+  countries: string[];
+  entityTypes: EntityType[];
+  statusFilter: StatusFilter;
+};
+
+function getDefaultFilters(): EntityFilters {
+  return {
+    countries: [],
+    entityTypes: [...FILTERABLE_ENTITY_TYPES],
+    statusFilter: 'all',
+  };
+}
+
+function normalizeCountries(countries: string[]): string[] {
+  const uniqueByLower = new Map<string, string>();
+
+  for (const rawCountry of countries) {
+    const trimmed = rawCountry.trim();
+    if (!trimmed) {
+      continue;
+    }
+
+    const key = trimmed.toLowerCase();
+    if (!uniqueByLower.has(key)) {
+      uniqueByLower.set(key, trimmed);
+    }
+  }
+
+  return Array.from(uniqueByLower.values()).slice(0, 5);
+}
+
+function normalizeEntityTypes(entityTypes: EntityType[]): EntityType[] {
+  const typeSet = new Set(entityTypes);
+  return FILTERABLE_ENTITY_TYPES.filter((type) => typeSet.has(type));
+}
+
+function applyFilters(entities: Record<string, Entity>, filters: EntityFilters): Entity[] {
+  const countrySet = new Set(filters.countries.map((country) => country.toLowerCase()));
+  const typeSet = new Set(filters.entityTypes);
+
+  return Object.values(entities).filter((entity) => {
+    if (!typeSet.has(entity.type)) {
+      return false;
+    }
+
+    if (
+      filters.statusFilter !== 'all' &&
+      entity.metadata.status !== filters.statusFilter
+    ) {
+      return false;
+    }
+
+    if (countrySet.size > 0 && !countrySet.has(entity.metadata.country.toLowerCase())) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+function hasActiveFilterState(filters: EntityFilters): boolean {
+  return (
+    filters.statusFilter !== 'all' ||
+    filters.countries.length > 0 ||
+    filters.entityTypes.length !== FILTERABLE_ENTITY_TYPES.length
+  );
+}
+
 type LayerStorageShape = {
   ships?: boolean;
   aircraft?: boolean;
@@ -74,6 +152,7 @@ interface MapStore {
   hasReceivedEntityData: boolean;
   socketConnected: boolean;
   selectedEntity: Entity | null;
+  filters: EntityFilters;
   activeLayers: LayerId[];
   layerVisibility: Record<LayerId, boolean>;
   cursorCoords: { lng: number; lat: number } | null;
@@ -92,8 +171,14 @@ interface MapStore {
   setSelectedHistoryRouteId: (id: string | null) => void;
   setMapInstance: (map: MapLibreMap | null) => void;
   setSocketConnected: (connected: boolean) => void;
+  setCountryFilter: (countries: string[]) => void;
+  setEntityTypeFilter: (entityType: EntityType, enabled: boolean) => void;
+  setStatusFilter: (status: StatusFilter) => void;
+  clearFilters: () => void;
   getEntityCountByType: (type: LayerId) => number;
   selectEntitiesByType: (type: EntityType) => Entity[];
+  selectFilteredEntities: () => Entity[];
+  hasActiveFilters: () => boolean;
   selectCounts: () => {
     aircraft: number;
     ships: number;
@@ -109,6 +194,7 @@ export const useMapStore = create<MapStore>((set, get) => ({
   hasReceivedEntityData: false,
   socketConnected: false,
   selectedEntity: null,
+  filters: getDefaultFilters(),
   activeLayers: getActiveLayersFromState(initialLayerVisibility),
   layerVisibility: initialLayerVisibility,
   cursorCoords: null,
@@ -188,6 +274,41 @@ export const useMapStore = create<MapStore>((set, get) => ({
 
   setSocketConnected: (connected) => set({ socketConnected: connected }),
 
+  setCountryFilter: (countries) =>
+    set((state) => ({
+      filters: {
+        ...state.filters,
+        countries: normalizeCountries(countries),
+      },
+    })),
+
+  setEntityTypeFilter: (entityType, enabled) =>
+    set((state) => {
+      const existing = new Set(state.filters.entityTypes);
+      if (enabled) {
+        existing.add(entityType);
+      } else {
+        existing.delete(entityType);
+      }
+
+      return {
+        filters: {
+          ...state.filters,
+          entityTypes: normalizeEntityTypes(Array.from(existing)),
+        },
+      };
+    }),
+
+  setStatusFilter: (status) =>
+    set((state) => ({
+      filters: {
+        ...state.filters,
+        statusFilter: status,
+      },
+    })),
+
+  clearFilters: () => set({ filters: getDefaultFilters() }),
+
   getEntityCountByType: (type) => {
     const entities = get().entities;
     return Object.values(entities).filter((entity) => entity.type === type).length;
@@ -195,6 +316,10 @@ export const useMapStore = create<MapStore>((set, get) => ({
 
   selectEntitiesByType: (type) =>
     Object.values(get().entities).filter((entity) => entity.type === type),
+
+  selectFilteredEntities: () => applyFilters(get().entities, get().filters),
+
+  hasActiveFilters: () => hasActiveFilterState(get().filters),
 
   selectCounts: () => {
     const entities = Object.values(get().entities);

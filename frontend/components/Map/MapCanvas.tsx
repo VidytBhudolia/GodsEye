@@ -85,13 +85,13 @@ function isWithinPaddedBounds(
 }
 
 function buildGeoJSON(
-  entities: Record<string, Entity>,
+  entities: Entity[],
   type: LayerKey,
   bounds: maplibregl.LngLatBounds | null
 ): EntityFeatureCollection {
   const features: EntityFeature[] = [];
 
-  for (const entity of Object.values(entities)) {
+  for (const entity of entities) {
     if (entity.type !== type) {
       continue;
     }
@@ -301,14 +301,14 @@ function ensureEntityIcons(map: maplibregl.Map) {
 }
 
 export default function MapCanvas() {
-  const entities = useMapStore((state) => state.entities);
+  const filteredEntities = useMapStore((state) => state.selectFilteredEntities());
   const activeLayers = useMapStore((state) => state.activeLayers);
   const selectedEntityId = useMapStore((state) => state.selectedEntity?.id ?? null);
   const hasReceivedEntityData = useMapStore((state) => state.hasReceivedEntityData);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
-  const entitiesRef = useRef<Record<string, Entity>>(entities);
+  const entitiesRef = useRef<Entity[]>(filteredEntities);
   const updateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
 
@@ -478,9 +478,9 @@ export default function MapCanvas() {
   }, [queueSourceSync]);
 
   useEffect(() => {
-    entitiesRef.current = entities;
+    entitiesRef.current = filteredEntities;
     queueSourceSync();
-  }, [entities, queueSourceSync]);
+  }, [filteredEntities, queueSourceSync]);
 
   useEffect(() => {
     const map = mapRef.current;
