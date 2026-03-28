@@ -11,6 +11,7 @@ import summarizeRouter from "./routes/summarize";
 import analysisRouter from "./routes/analysis";
 import historyRouter from "./routes/history";
 import { startAisStream } from "./services/adapters/AISAdapter";
+import { startAirplanesLiveAdapter } from "./services/adapters/AirplanesLiveAdapter";
 import { startOpenSkyPolling } from "./jobs/openskyPolling";
 import { startTleAdapter } from "./services/adapters/TLEAdapter";
 import { logger } from "./utils";
@@ -68,6 +69,14 @@ try {
   startOpenSkyPolling();
 } catch (error) {
   logger.error("Failed to start OpenSky polling.", {
+    err: error instanceof Error ? error.message : String(error),
+  });
+}
+
+try {
+  startAirplanesLiveAdapter();
+} catch (error) {
+  logger.error("Failed to start AirplanesLive adapter.", {
     err: error instanceof Error ? error.message : String(error),
   });
 }
