@@ -1,2 +1,11 @@
-// Database barrel exports — implementations added in Phase 2
-export {};
+export {
+	getEntities,
+	getEntityById,
+	getLatestPositionHistory,
+	getPositionHistory,
+	getPositionHistoryForRoutes,
+	insertPositionHistory,
+	supabase,
+	upsertAiSummary,
+	upsertEntities,
+} from "./supabaseClient";

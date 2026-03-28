@@ -1,7 +1,9 @@
 import { fetchOpenSkyStates } from "../services/adapters/OpenSkyAdapter";
 import { cacheExists, cacheSet, cacheGet } from "../services/cache/redisClient";
 import { upsertEntities } from "../services/database/supabaseClient";
+import { writeHistorySnapshot } from "../services/database/historyWriter";
 import { getIO } from "../sockets/entitySocket";
+import { logger } from "../utils";
 
 export function startOpenSkyPolling() {
   const POLLING_INTERVAL_MS = 60000;
@@ -10,7 +12,7 @@ export function startOpenSkyPolling() {
     try {
       const exists = await cacheExists("opensky:states:all");
       if (exists) {
-        console.log("[OpenSky] Skipped API fetch, cache exists.");
+        logger.info("OpenSky fetch skipped; using cache.");
         // Emit from cache directly
         const cachedEntities = await cacheGet<any[]>("opensky:states:all");
         const io = getIO();
@@ -20,20 +22,24 @@ export function startOpenSkyPolling() {
         return;
       }
       
-      console.log("[OpenSky] Fetching from API...");
+      logger.info("OpenSky fetching from API.");
       const entities = await fetchOpenSkyStates();
       
       await cacheSet("opensky:states:all", entities, 60);
       await upsertEntities(entities);
+
+      entities.forEach((entity) => {
+        writeHistorySnapshot(entity);
+      });
       
       const io = getIO();
       if (io) {
         entities.forEach(entity => io.emit("entity:update", entity));
       }
       
-      console.log(`[OpenSky] Saved and emitted ${entities.length} entities.`);
+      logger.info("OpenSky saved and emitted entities.", { count: entities.length });
     } catch (err: any) {
-      console.error("[OpenSky] Polling Error:", err.message);
+      logger.error("OpenSky polling failed.", { err: err?.message || "Unknown error" });
     }
   };
 

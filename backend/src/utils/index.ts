@@ -1,2 +1,1 @@
-// Utils barrel exports — implementations added in Phase 2
-export {};
+export { logger } from "./logger";

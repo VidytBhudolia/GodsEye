@@ -1,2 +1,3 @@
-// Adapter barrel exports — implementations added in Phase 2
-export {};
+export { startAisStream } from "./AISAdapter";
+export { fetchOpenSkyStates } from "./OpenSkyAdapter";
+export { startTleAdapter } from "./TLEAdapter";

@@ -1,18 +1,30 @@
 import { createClient } from "@supabase/supabase-js";
 import { Entity } from "../../../../shared/contract";
 import dotenv from "dotenv";
+import { logger } from "../../utils";
 
 dotenv.config({ path: "../.env" });
 dotenv.config({ path: "../../.env" });
 
 const supabaseUrl = process.env.SUPABASE_URL || "";
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY || "";
+const fallbackSupabaseUrl = "https://placeholder.supabase.co";
+const fallbackSupabaseKey = "placeholder-service-key";
 
 if (!supabaseUrl || !supabaseKey) {
-  console.warn("[Supabase] SUPABASE_URL or SUPABASE_SERVICE_KEY is missing but continuing for now.");
+  logger.warn("SUPABASE_URL or SUPABASE_SERVICE_KEY is missing but continuing for now.");
 }
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient(
+  supabaseUrl || fallbackSupabaseUrl,
+  supabaseKey || fallbackSupabaseKey,
+  {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  }
+);
 
 /**
  * Upserts an array of entities into the Supabase database.
@@ -41,7 +53,7 @@ export async function upsertEntities(entities: Entity[]) {
     });
 
   if (error) {
-    console.error("[Supabase] Failed to upsert entities:", error);
+    logger.error("Failed to upsert entities.", { err: error.message });
   }
 
   return { error, count: records.length };
@@ -58,6 +70,10 @@ export async function getEntities(type?: string) {
   return await query;
 }
 
+export async function getEntityById(entityId: string) {
+  return await supabase.from("entities").select("*").eq("entity_id", entityId).maybeSingle();
+}
+
 /**
  * Upsert AI Summary
  */
@@ -68,4 +84,56 @@ export async function upsertAiSummary(entityId: string, summary: string) {
   }, {
     onConflict: "entity_id",
   });
+}
+
+export interface PositionHistoryRow {
+  entity_id: string;
+  lat: number;
+  lon: number;
+  alt_m?: number | null;
+  speed_knots?: number | null;
+  heading_deg?: number | null;
+  recorded_at: string;
+}
+
+export async function insertPositionHistory(row: PositionHistoryRow) {
+  const { data, error } = await supabase.from("position_history").insert(row);
+
+  if (error) {
+    logger.error("Failed to insert position_history row.", {
+      err: error.message,
+      entityId: row.entity_id,
+    });
+  }
+
+  return { data, error };
+}
+
+export async function getLatestPositionHistory(entityId: string) {
+  return await supabase
+    .from("position_history")
+    .select("lat, lon, recorded_at")
+    .eq("entity_id", entityId)
+    .order("recorded_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+}
+
+export async function getPositionHistory(entityId: string, sinceIso: string, limit = 500) {
+  return await supabase
+    .from("position_history")
+    .select("lat, lon, alt_m, speed_knots, heading_deg, recorded_at")
+    .eq("entity_id", entityId)
+    .gte("recorded_at", sinceIso)
+    .order("recorded_at", { ascending: false })
+    .limit(limit);
+}
+
+export async function getPositionHistoryForRoutes(entityId: string, limit = 2000) {
+  return await supabase
+    .from("position_history")
+    .select("lat, lon, recorded_at")
+    .eq("entity_id", entityId)
+    .order("recorded_at", { ascending: false })
+    .limit(limit);
 }
