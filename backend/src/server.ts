@@ -10,10 +10,12 @@ import entitiesRouter from "./routes/entities";
 import summarizeRouter from "./routes/summarize";
 import analysisRouter from "./routes/analysis";
 import historyRouter from "./routes/history";
+import alertsRouter from "./routes/alerts";
 import { startAisStream } from "./services/adapters/AISAdapter";
 import { startAirplanesLiveAdapter } from "./services/adapters/AirplanesLiveAdapter";
 import { startOpenSkyPolling } from "./jobs/openskyPolling";
 import { startTleAdapter } from "./services/adapters/TLEAdapter";
+import { initializeAlertsEngine } from "./services/alerts/alertsEngine";
 import { logger } from "./utils";
 
 dotenv.config({ path: "../.env" });
@@ -52,9 +54,11 @@ app.use("/api/entities", entitiesRouter);
 app.use("/api/entities", summarizeRouter);
 app.use("/api/analysis", analysisRouter);
 app.use("/api/history", historyRouter);
+app.use("/api/alerts", alertsRouter);
 
 // WebSocket
 registerEntitySocket(io);
+initializeAlertsEngine(io);
 
 // Start Data Adapters
 try {

@@ -3,6 +3,7 @@ import { fetchOpenSkyStates, OpenSkyBbox } from "../services/adapters/OpenSkyAda
 import { cacheExists, cacheSet, cacheGet } from "../services/cache/redisClient";
 import { upsertEntities } from "../services/database/supabaseClient";
 import { writeHistorySnapshot } from "../services/database/historyWriter";
+import { checkEntity } from "../services/alerts/alertsEngine";
 import { enqueueEntityUpdate, getAggregatedViewportBounds, getViewportStateSummary } from "../websocket";
 import { logger } from "../utils";
 
@@ -132,6 +133,8 @@ export function startOpenSkyPolling() {
       await upsertEntities(entities);
 
       entities.forEach((entity) => {
+        // Fire-and-forget detection evaluation; do not await in polling hot path.
+        checkEntity(entity);
         writeHistorySnapshot(entity);
         enqueueEntityUpdate(entity);
       });

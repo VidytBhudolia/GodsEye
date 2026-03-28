@@ -4,6 +4,7 @@ import { normalizeAisMessage } from "./Normalizer";
 import { enqueueEntityUpdate } from "../../websocket";
 import { upsertEntities } from "../database/supabaseClient";
 import { writeHistorySnapshot } from "../database/historyWriter";
+import { checkEntity } from "../alerts/alertsEngine";
 import dotenv from "dotenv";
 import { logger } from "../../utils";
 
@@ -60,6 +61,9 @@ export function startAisStream(retryCount = 0) {
       const entity = normalizeAisMessage(parsed.data);
       if (entity) {
         enqueueEntityUpdate(entity);
+
+        // Fire-and-forget detection evaluation; do not block ingest path.
+        checkEntity(entity);
 
         writeHistorySnapshot(entity);
         
