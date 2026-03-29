@@ -1,6 +1,7 @@
 import { Entity } from "../../../../shared/contract";
 import { logger } from "../../utils";
 import {
+  canAttemptSupabaseWrite,
   getLatestPositionHistory,
   insertPositionHistory,
   PositionHistoryRow,
@@ -29,7 +30,7 @@ async function getPreviousPosition(entityId: string): Promise<LatLon | null> {
 
   const { data, error } = await getLatestPositionHistory(entityId);
   if (error) {
-    logger.warn("Failed to fetch latest position_history for dedupe.", {
+    logger.debug("Skipping dedupe lookup due to position_history read failure.", {
       err: error.message,
       entityId,
     });
@@ -52,6 +53,10 @@ async function writePositionHistory(entity: Entity): Promise<void> {
   }
 
   if (typeof entity.position?.lat !== "number" || typeof entity.position?.lon !== "number") {
+    return;
+  }
+
+  if (!canAttemptSupabaseWrite()) {
     return;
   }
 
