@@ -57,7 +57,7 @@ export default function TopNav() {
         </div>
         <h1 className="text-lg font-semibold tracking-wide text-[#F8FAFC]">SENTINEL</h1>
 
-        <nav className="ml-3 flex items-center gap-1 rounded-full border border-[#1E2130] bg-[#141824]/70 p-1">
+        <nav className="ml-4 flex h-full items-end gap-3">
           {NAV_TABS.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
@@ -65,10 +65,10 @@ export default function TopNav() {
                 key={tab.id}
                 type="button"
                 onClick={() => handleTabChange(tab.id)}
-                className={`rounded-full px-3 py-1 text-[10px] font-semibold tracking-wider transition-colors ${
+                className={`h-full border-b-2 px-1 pb-3 pt-3 text-[10px] font-semibold tracking-wider transition-colors ${
                   isActive
-                    ? "bg-[#22C55E]/20 text-[#22C55E]"
-                    : "text-[#64748B] hover:text-[#F8FAFC]"
+                    ? "border-[#22C55E] text-[#22C55E]"
+                    : "border-transparent text-[#64748B] hover:text-[#F8FAFC]"
                 }`}
               >
                 {tab.label}

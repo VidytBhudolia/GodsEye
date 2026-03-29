@@ -504,9 +504,11 @@ export default function MapCanvas() {
 
   return (
     <div
-      className={`absolute inset-0 transition-opacity duration-200 ${
-        hideMap ? "pointer-events-none opacity-0" : "opacity-100"
-      }`}
+      className="absolute inset-0"
+      style={{
+        visibility: hideMap ? "hidden" : "visible",
+        pointerEvents: hideMap ? "none" : "auto",
+      }}
     >
       <div ref={mapContainerRef} className="absolute inset-0 h-full w-full" />
       {!mapLoaded && (
