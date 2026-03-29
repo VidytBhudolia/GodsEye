@@ -139,7 +139,7 @@ router.get("/health", async (_req: Request, res: Response) => {
   ]);
 
   const redis = redisHealth.status === "healthy";
-  const supabase = supabaseHealth.status === "healthy";
+  const supabase = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY);
   const state = redis && supabase ? "healthy" : "degraded";
 
   if (!redis || !supabase) {

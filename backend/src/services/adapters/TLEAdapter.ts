@@ -224,7 +224,9 @@ function emitSatelliteUpdates(): void {
 }
 
 export function startTleAdapter(): void {
-  void ensureTlesLoaded();
+  void ensureTlesLoaded().then((loaded) => {
+    logger.info(`TLEAdapter: loaded ${loaded.length} TLEs`);
+  });
 
   setInterval(() => {
     void refreshTleCache().catch((error) => {

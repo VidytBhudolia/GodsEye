@@ -29,7 +29,7 @@ export function startAisStream(retryCount = 0) {
   const ws = new WebSocket("wss://stream.aisstream.io/v0/stream");
 
   ws.on("open", () => {
-    logger.info("AIS connected.");
+    logger.info("AISAdapter: connected");
 
     const apiKey = process.env.AISSTREAM_API_KEY || process.env.AIS_STREAM_API_KEY;
     if (!apiKey) {

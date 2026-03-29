@@ -95,6 +95,10 @@ function resolvePollingTarget(): { mode: OpenSkyPollMode; bbox: OpenSkyBbox | nu
 export function startOpenSkyPolling() {
   const pollingIntervalMs = parsePositiveInt(process.env.OPENSKY_POLLING_INTERVAL_MS, DEFAULT_POLLING_INTERVAL_MS);
   const cacheTtlSeconds = Math.max(5, Math.round(pollingIntervalMs / 1000));
+
+  logger.info("OpenSkyAdapter: polling started", {
+    intervalMs: pollingIntervalMs,
+  });
   
   const poll = async () => {
     const startedAt = Date.now();

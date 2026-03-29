@@ -59,8 +59,8 @@ router.post("/:alertId/acknowledge", (req, res) => {
     return res.status(400).json({ success: false });
   }
 
-  const success = acknowledgeAlert(parsed.data.alertId);
-  return res.json({ success });
+  acknowledgeAlert(parsed.data.alertId);
+  return res.json({ success: true });
 });
 
 export default router;
