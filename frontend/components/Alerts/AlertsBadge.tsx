@@ -6,27 +6,28 @@ import { useAlertsStore } from "@/store/useAlertsStore";
 import { useMapStore } from "@/store/useMapStore";
 
 export default function AlertsBadge() {
-  const { unreadCount, panelOpen, setPanelOpen } = useAlertsStore(
+  const { unreadCount, panelOpen, togglePanel } = useAlertsStore(
     useShallow((state) => ({
       unreadCount: state.unreadCount,
       panelOpen: state.panelOpen,
-      setPanelOpen: state.setPanelOpen,
+      togglePanel: state.togglePanel,
     }))
   );
   const activeTab = useMapStore((state) => state.activeTab);
   const setActiveTab = useMapStore((state) => state.setActiveTab);
 
   const handleToggle = () => {
-    if (panelOpen) {
-      setPanelOpen(false);
-      if (activeTab === "alerts") {
-        setActiveTab("live");
-      }
+    const opening = !panelOpen;
+    togglePanel();
+
+    if (opening) {
+      setActiveTab("alerts");
       return;
     }
 
-    setActiveTab("alerts");
-    setPanelOpen(true);
+    if (activeTab === "alerts") {
+      setActiveTab("live");
+    }
   };
 
   return (
@@ -44,7 +45,7 @@ export default function AlertsBadge() {
       <Bell size={16} />
       {unreadCount > 0 && (
         <span
-          className={`absolute -right-1 -top-1 min-w-[20px] rounded-full border border-[#0F1117] bg-[#F97316] px-1.5 py-[1px] text-[10px] font-semibold leading-none text-[#080A0F] ${
+          className={`absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#EF4444] px-1 text-[9px] font-semibold leading-none text-[#F8FAFC] ${
             unreadCount > 0 ? "animate-pulse" : ""
           }`}
         >
