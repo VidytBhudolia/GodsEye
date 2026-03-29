@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { Entity } from "../../../../shared/contract";
+import { Entity } from "../../shared/contract";
 import dotenv from "dotenv";
 import { logger } from "../../utils";
 

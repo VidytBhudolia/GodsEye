@@ -1,4 +1,4 @@
-import { Entity } from "../../../shared/contract";
+import { Entity } from "../shared/contract";
 import { fetchOpenSkyStates, OpenSkyBbox } from "../services/adapters/OpenSkyAdapter";
 import { cacheExists, cacheSet, cacheGet } from "../services/cache/redisClient";
 import { upsertEntities } from "../services/database/supabaseClient";

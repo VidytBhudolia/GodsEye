@@ -1,5 +1,5 @@
 import { Server as SocketIOServer } from "socket.io";
-import { Entity } from "../../../shared/contract";
+import { Entity } from "../shared/contract";
 import { logger } from "../utils";
 
 const DEFAULT_FLUSH_INTERVAL_MS = 250;

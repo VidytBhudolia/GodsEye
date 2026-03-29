@@ -1,6 +1,6 @@
 import axios from "axios";
 import { z } from "zod";
-import { Entity } from "../../../../shared/contract";
+import { Entity } from "../../shared/contract";
 import { upsertEntities } from "../database/supabaseClient";
 import { queueEntityUpdate } from "../../websocket/batchedBroadcast";
 import { logger } from "../../utils";

@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { Server as SocketIOServer } from "socket.io";
-import { Entity } from "../../../../shared/contract";
+import { Entity } from "../../shared/contract";
 import { logger } from "../../utils";
 import { addAlert, Alert } from "./alertsStore";
 

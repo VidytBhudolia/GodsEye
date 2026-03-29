@@ -8,7 +8,7 @@ import {
   twoline2satrec,
 } from "satellite.js";
 import { z } from "zod";
-import { Entity } from "../../../../shared/contract";
+import { Entity } from "../../shared/contract";
 import { logger } from "../../utils";
 import { cacheGet, cacheSet } from "../cache/redisClient";
 import { enqueueEntityUpdate } from "../../websocket";

@@ -1,4 +1,4 @@
-import { Entity, EntityType } from "../../../../shared/contract";
+import { Entity, EntityType } from "../../shared/contract";
 
 /**
  * Normalizes OpenSky State Vectors

@@ -1,7 +1,7 @@
 import axios from "axios";
 import { z } from "zod";
 import { normalizeOpenSkyState } from "./Normalizer";
-import { Entity } from "../../../../shared/contract";
+import { Entity } from "../../shared/contract";
 import dotenv from "dotenv";
 import { logger } from "../../utils";
 

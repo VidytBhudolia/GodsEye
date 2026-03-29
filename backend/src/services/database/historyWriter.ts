@@ -1,4 +1,4 @@
-import { Entity } from "../../../../shared/contract";
+import { Entity } from "../../shared/contract";
 import { logger } from "../../utils";
 import {
   canAttemptSupabaseWrite,
