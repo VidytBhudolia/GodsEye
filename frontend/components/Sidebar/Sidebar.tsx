@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Ship,
   Plane,
@@ -27,15 +27,7 @@ export default function Sidebar() {
     }))
   );
   const counts = useMapStore(useShallow((state) => state.selectCounts()));
-  const filters = useMapStore((state) => state.filters);
-
-  const hasActiveFilters = useMemo(
-    () =>
-      filters.statusFilter !== "all" ||
-      filters.countries.length > 0 ||
-      filters.entityTypes.length !== 4,
-    [filters]
-  );
+  const hasActiveFilters = useMapStore((state) => state.hasActiveFilters());
 
   useEffect(() => {
     hydrateLayers();
